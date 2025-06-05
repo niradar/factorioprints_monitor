@@ -1,11 +1,10 @@
 # monitoring/utils.py
-
 from .models import Blueprint, BlueprintSnapshot, CommentSnapshot, UserSnapshot
 from django.db import transaction
 from datetime import datetime, timezone
 
-from comments_scraper import get_comments
-from blueprints_scraper import scrape_user_blueprints
+from .comments_scraper import get_comments
+from .blueprints_scraper import scrape_user_blueprints
 
 def take_snapshot(user_url: str) -> datetime:
     snapshot_ts = datetime.now(timezone.utc)
