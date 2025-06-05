@@ -57,3 +57,54 @@ def get_latest_blueprints(user_url):
     return BlueprintSnapshot.objects.filter(
         snapshot_ts=latest_ts
     ).select_related('blueprint')
+
+def blueprints_with_new_comments(user_url: str, start_date: str, end_date: str) -> str:
+    """
+    Returns a CSV string of all blueprints for a user that received new comments between two dates.
+    Each row: blueprint_url, blueprint_name, num_of_new_comments, comments_num_on_end_date
+    """
+    # Parse as date (ignore hour)
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    # Find the latest snapshot for each date (if available)
+    start_snapshot_qs = UserSnapshot.objects.filter(user_url=user_url, snapshot_ts__date=start_date_obj).order_by('-snapshot_ts')
+    end_snapshot_qs = UserSnapshot.objects.filter(user_url=user_url, snapshot_ts__date=end_date_obj).order_by('-snapshot_ts')
+
+    if not start_snapshot_qs.exists():
+        return f"No snapshots found for start date {start_date}."
+    if not end_snapshot_qs.exists():
+        return f"No snapshots found for end date {end_date}."
+
+    start_snapshot_ts = start_snapshot_qs.first().snapshot_ts
+    end_snapshot_ts = end_snapshot_qs.first().snapshot_ts
+
+    # Get blueprints that existed at the end date
+    end_blueprints = BlueprintSnapshot.objects.filter(snapshot_ts=end_snapshot_ts)
+    result_rows = []
+    for bp_snap in end_blueprints:
+        # Count comments at start and end
+        comments_at_start = CommentSnapshot.objects.filter(
+            snapshot_ts=start_snapshot_ts,
+            blueprint=bp_snap.blueprint
+        ).count()
+        comments_at_end = CommentSnapshot.objects.filter(
+            snapshot_ts=end_snapshot_ts,
+            blueprint=bp_snap.blueprint
+        ).count()
+        num_new_comments = comments_at_end - comments_at_start
+        if num_new_comments > 0:
+            result_rows.append([
+                bp_snap.blueprint.url,
+                bp_snap.name,
+                str(num_new_comments),
+                str(comments_at_end)
+            ])
+    if not result_rows:
+        return "No blueprints received new comments in this period."
+    out = ["blueprint_url,blueprint_name,num_of_new_comments,comments_num_on_end_date"]
+    for row in result_rows:
+        # Escape blueprint_name if needed
+        row[1] = '"' + row[1].replace('"', '""') + '"' if ',' in row[1] else row[1]
+        out.append(",".join(row))
+    return "\n".join(out)
