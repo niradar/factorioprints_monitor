@@ -19,3 +19,6 @@ dev = [
     "pytest>=7.0.0",
     "pytest-mock",
 ]
+
+[tool.setuptools.packages.find]
+include = ["monitoring*"]
