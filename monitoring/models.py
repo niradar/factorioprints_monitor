@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.db import models
 
 class Blueprint(models.Model):
@@ -21,8 +22,8 @@ class BlueprintSnapshot(models.Model):
     snapshot_ts = models.DateTimeField()
     blueprint = models.ForeignKey(Blueprint, on_delete=models.CASCADE, related_name='snapshots')
     name = models.CharField(max_length=255)  # Name at this point in time
-    favourites = models.IntegerField()
-    total_comments = models.IntegerField()
+    favourites = models.IntegerField(validators=[MinValueValidator(0)])
+    total_comments = models.IntegerField(validators=[MinValueValidator(0)])
 
     class Meta:
         unique_together = ('snapshot_ts', 'blueprint')
