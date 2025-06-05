@@ -2,9 +2,29 @@
 
 Monitor user blueprints on Factorioprints.com and receive notifications when new comments are posted on your blueprints.
 
-## Installation
 
-To install the dependencies using [uv](https://github.com/astral-sh/uv):
+## 1. Prerequisites
+
+### Docker
+
+Make sure you have Docker installed and running on your machine.
+You can download it from [Docker's official site](https://www.docker.com/get-started).
+
+### uv
+
+If needed, install [uv](https://github.com/astral-sh/uv), a Python package manager that simplifies virtual environments and dependency management.
+
+
+### RabbitMQ
+
+Run a RabbitMQ docker container:
+
+    docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management
+
+
+## 2. Installation
+
+To install the dependencies using uv:
 
 ```bash
 uv venv
@@ -18,7 +38,7 @@ Optional (for development):
 uv pip install -e .[dev]
 ```
 
-## Usage: Django Management Commands
+## 3. Usage: Django Management Commands
 
 After setting up your Django project and running migrations, you can collect and view blueprint and comment snapshots using the following management commands:
 
