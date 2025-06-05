@@ -3,7 +3,6 @@ from django.db import models
 class Blueprint(models.Model):
     url = models.URLField(unique=True)
     name = models.CharField(max_length=255)
-    # Add other static fields here if you want (e.g., created_at, owner, etc.)
 
     def __str__(self):
         return self.name
