@@ -1,8 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from monitoring.models import UserSnapshot, BlueprintSnapshot, CommentSnapshot
 from django.db import transaction
-from datetime import datetime
-import pytz
+from datetime import datetime, timezone
 
 class Command(BaseCommand):
     help = "Delete a snapshot and all its associated data (by timestamp, in ISO-8601 format)"
@@ -13,11 +12,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         ts_str = options['timestamp']
         try:
-            # Parse timestamp as aware datetime (UTC or with timezone)
             snapshot_ts = datetime.fromisoformat(ts_str)
             if snapshot_ts.tzinfo is None:
-                # Assume UTC if naive
-                snapshot_ts = snapshot_ts.replace(tzinfo=pytz.UTC)
+                snapshot_ts = snapshot_ts.replace(tzinfo=timezone.utc)
         except Exception:
             raise CommandError("Invalid timestamp format. Use ISO-8601 (e.g. 2025-06-05T08:00:00+00:00)")
 
