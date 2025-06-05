@@ -64,6 +64,17 @@ python manage.py latest_blueprints --user-url "https://factorioprints.com/user/<
 
 ---
 
+### 4. **Delete a Snapshot**
+
+Delete a snapshot and all its data by timestamp:
+
+```bash
+python manage.py delete_snapshot --timestamp 2025-06-05T08:00:00+00:00
+```
+
+* The timestamp must match exactly the one listed in `list_snapshots`.
+
+
 ### Notes
 
 * These commands are **run from your Django project root directory**.
