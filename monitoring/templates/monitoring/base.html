@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Factorioprints Monitor{% endblock %}</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background: #f6f8fa; }
+        header, nav { margin-bottom: 2em; }
+        .container { background: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #ccc; }
+        table { border-collapse: collapse; width: 100%; background: #fff; }
+        th, td { border: 1px solid #e0e0e0; padding: 8px; text-align: left; }
+        th { background: #f0f0f0; }
+        form { margin-bottom: 1.5em; }
+        .error { color: red; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <h1><a href="{% url 'home' %}" style="text-decoration:none;color:inherit;">Factorioprints Monitor</a></h1>
+        <nav>
+            <!-- Add navigation links if needed -->
+        </nav>
+    </header>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    <footer style="margin-top:2em; color:#777;">
+        &copy; 2025 Factorioprints Monitor
+    </footer>
+</body>
+</html>

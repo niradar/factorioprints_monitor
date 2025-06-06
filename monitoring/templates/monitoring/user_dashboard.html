@@ -1,0 +1,17 @@
+{% extends "monitoring/base.html" %}
+{% block title %}Dashboard - {{ fp_user_id }}{% endblock %}
+{% block content %}
+    <h2>User Dashboard: {{ fp_user_id }}</h2>
+    <a href="{% url 'take_snapshot' fp_user_id %}">Take New Snapshot</a>
+    <h3>Snapshots:</h3>
+    <ul>
+      {% for snap in snapshots %}
+        <li>{{ snap.snapshot_ts }}</li>
+      {% empty %}
+        <li>No snapshots yet.</li>
+      {% endfor %}
+    </ul>
+    <form method="get" action="{% url 'comments_between' fp_user_id %}">
+        <button type="submit">Show Comments Between Dates</button>
+    </form>
+{% endblock %}
