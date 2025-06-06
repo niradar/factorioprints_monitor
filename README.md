@@ -108,11 +108,11 @@ python manage.py delete_snapshot --timestamp 2025-06-05T08:00:00+00:00
 
 ```bash
 # Take a snapshot for a user
-python manage.py take_snapshot --user-url "https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52"
+python manage.py take_snapshot --user-url https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52
 
 # List all snapshots for that user
-python manage.py list_snapshots --user-url "https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52"
+python manage.py list_snapshots --user-url https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52
 
 # See latest blueprints in the most recent snapshot
-python manage.py latest_blueprints --user-url "https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52"
+python manage.py latest_blueprints --user-url https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52
 ```
