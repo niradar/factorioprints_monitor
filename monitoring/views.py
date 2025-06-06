@@ -8,6 +8,9 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 import csv
 from io import StringIO
+from datetime import timedelta
+from django.utils import timezone
+
 
 def extract_fp_user_id(user_url):
     # You may want better validation here
@@ -22,21 +25,38 @@ def home(request):
     return render(request, 'monitoring/home.html')
 
 
+
 def user_dashboard(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
     snapshots = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts')
+    now = timezone.now()
+    cutoff_time = now - timedelta(hours=1)
+    # Button is disabled if any snapshot newer than cutoff_time exists
+    snapshot_recent = snapshots and snapshots[0].snapshot_ts > cutoff_time
     return render(request, 'monitoring/user_dashboard.html', {
         'fp_user_id': fp_user_id,
         'snapshots': snapshots,
         'user_url': user_url,
+        'cutoff_time': cutoff_time,
+        'snapshot_recent': snapshot_recent,
     })
 
+
+from .tasks import take_snapshot_task
 def take_snapshot_view(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
-    # For MVP, call synchronously; in production, trigger Celery
-    from .utils import take_snapshot as do_snapshot
-    do_snapshot(user_url)
+    # Launch async Celery task!
+    task = take_snapshot_task.delay(user_url)
+    # Optionally: Store the Celery task_id somewhere if you want to poll its status
     return HttpResponseRedirect(reverse('user_dashboard', args=[fp_user_id]))
+
+# Uncomment this if you want to use a synchronous version (not recommended for production)
+# def take_snapshot_view(request, fp_user_id):
+#     user_url = f"https://factorioprints.com/user/{fp_user_id}"
+#     # For MVP, call synchronously; in production, trigger Celery
+#     from .utils import take_snapshot as do_snapshot
+#     do_snapshot(user_url)
+#     return HttpResponseRedirect(reverse('user_dashboard', args=[fp_user_id]))
 
 def parse_csv_table(csv_string):
     """Parses CSV into list of dicts (header->value). Returns [] if error or no data."""

@@ -1,17 +1,35 @@
 {% extends "monitoring/base.html" %}
 {% block title %}Dashboard - {{ fp_user_id }}{% endblock %}
 {% block content %}
-    <h2>User Dashboard: {{ fp_user_id }}</h2>
-    <a href="{% url 'take_snapshot' fp_user_id %}">Take New Snapshot</a>
-    <h3>Snapshots:</h3>
-    <ul>
-      {% for snap in snapshots %}
-        <li>{{ snap.snapshot_ts }}</li>
-      {% empty %}
-        <li>No snapshots yet.</li>
-      {% endfor %}
-    </ul>
-    <form method="get" action="{% url 'comments_between' fp_user_id %}">
-        <button type="submit">Show Comments Between Dates</button>
-    </form>
+<h2>User Dashboard: {{ fp_user_id }}</h2>
+
+{% if snapshots and snapshots.0.snapshot_ts > cutoff_time %}
+    <div class="info" style="color:#0074d9; margin-bottom:1em;">
+        A snapshot was just started or completed within the last hour.<br>
+        It may take a minute to finish processing. Please refresh this page to see updates.
+    </div>
+{% endif %}
+
+<form method="post" action="{% url 'take_snapshot' fp_user_id %}">
+    {% csrf_token %}
+    <button type="submit" {% if snapshot_recent %}disabled style="background:#ccc; color:#888; cursor:not-allowed;"{% endif %}>
+        Take New Snapshot
+    </button>
+    {% if snapshot_recent %}
+        <span style="color: #888; margin-left: 1em;">(Disabled: snapshot recently taken)</span>
+    {% endif %}
+</form>
+
+<h3>Snapshots:</h3>
+<ul>
+  {% for snap in snapshots %}
+    <li>{{ snap.snapshot_ts }}</li>
+  {% empty %}
+    <li>No snapshots yet.</li>
+  {% endfor %}
+</ul>
+
+<form method="get" action="{% url 'comments_between' fp_user_id %}">
+    <button type="submit">Show Comments Between Dates</button>
+</form>
 {% endblock %}
