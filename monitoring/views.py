@@ -1,6 +1,6 @@
 # views.py
 from django.shortcuts import render, redirect
-from .models import UserSnapshot
+from .models import UserSnapshot, BlueprintSnapshot
 from .utils import take_snapshot, blueprints_with_new_comments
 from urllib.parse import urlparse
 
@@ -33,12 +33,22 @@ def user_dashboard(request, fp_user_id):
     cutoff_time = now - timedelta(hours=1)
     # Button is disabled if any snapshot newer than cutoff_time exists
     snapshot_recent = snapshots and snapshots[0].snapshot_ts > cutoff_time
+    
+    # NEW: Get blueprints from latest snapshot
+    blueprint_snapshots = []
+    if snapshots:
+        latest_snapshot = snapshots[0]
+        blueprint_snapshots = BlueprintSnapshot.objects.filter(
+            snapshot_ts=latest_snapshot.snapshot_ts
+        ).order_by('name')
+    
     return render(request, 'monitoring/user_dashboard.html', {
         'fp_user_id': fp_user_id,
         'snapshots': snapshots,
         'user_url': user_url,
         'cutoff_time': cutoff_time,
         'snapshot_recent': snapshot_recent,
+        'blueprint_snapshots': blueprint_snapshots,  # NEW: Pass to template
     })
 
 

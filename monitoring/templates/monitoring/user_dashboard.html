@@ -29,6 +29,31 @@
   {% endfor %}
 </ul>
 
+<!-- NEW: Blueprints table -->
+{% if blueprint_snapshots %}
+  <h3>Blueprints (Latest Snapshot)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Comments</th>
+        <th>Favorites</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for bp in blueprint_snapshots %}
+        <tr>
+          <td>{{ bp.name }}</td>
+          <td>{{ bp.total_comments }}</td>
+          <td>{{ bp.favourites }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No blueprint data available</p>
+{% endif %}
+
 <form method="get" action="{% url 'comments_between' fp_user_id %}">
     <button type="submit">Show Comments Between Dates</button>
 </form>
