@@ -3,7 +3,7 @@
 {% block content %}
 <h2>User Dashboard: {{ fp_user_id }}</h2>
 
-{% if snapshots and snapshots.0.snapshot_ts > cutoff_time %}
+{% if snapshots and snapshots.0 and snapshots.0.snapshot_ts > cutoff_time %}
     <div class="info" style="color:#0074d9; margin-bottom:1em;">
         A snapshot was just started or completed within the last hour.<br>
         It may take a minute to finish processing. Please refresh this page to see updates.
