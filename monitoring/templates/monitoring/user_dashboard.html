@@ -29,7 +29,12 @@
   {% endfor %}
 </ul>
 
-<!-- NEW: Blueprints table -->
+
+<form method="get" action="{% url 'comments_between' fp_user_id %}">
+    <button type="submit">Show Comments Between Dates</button>
+</form>
+
+<!-- Blueprints table -->
 {% if blueprint_snapshots %}
   <h3>Blueprints (Latest Snapshot)</h3>
   <table>
@@ -54,7 +59,4 @@
   <p>No blueprint data available</p>
 {% endif %}
 
-<form method="get" action="{% url 'comments_between' fp_user_id %}">
-    <button type="submit">Show Comments Between Dates</button>
-</form>
 {% endblock %}
