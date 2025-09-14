@@ -2,11 +2,14 @@
 {% block title %}New Comments - {{ fp_user_id }}{% endblock %}
 {% block content %}
     <h2>New Comments for {{ fp_user_id }}</h2>
+    <p><a href="{% url 'user_dashboard' fp_user_id %}">&larr; Back to Dashboard</a></p>
+    <p>View new comments received between two dates. Dates are inclusive.</p>
     <form method="get">{% csrf_token %}
         Start date: <input name="start_date" type="date" required value="{{ start|default_if_none:'' }}">
         End date: <input name="end_date" type="date" required value="{{ end|default_if_none:'' }}">
         <button type="submit">Show</button>
     </form>
+
 
     {% if error_msg %}
         <div class="error">{{ error_msg }}</div>
@@ -26,7 +29,11 @@
             {% for row in table_rows %}
                 <tr>
                 {% for v in row.values %}
-                    <td>{{ v }}</td>
+                    {% if forloop.first %}
+                        <td><a href="{{ v }}" target="_blank">{{ v }}</a></td>
+                    {% else %}
+                        <td>{{ v }}</td>
+                    {% endif %}
                 {% endfor %}
                 </tr>
             {% endfor %}
