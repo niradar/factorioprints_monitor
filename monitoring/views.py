@@ -58,14 +58,35 @@ def user_dashboard(request, fp_user_id):
         blueprint_snapshots = BlueprintSnapshot.objects.filter(
             snapshot_ts=latest_snapshot.snapshot_ts
         ).order_by('name')
-    
+
+    # Get last 5 unique comments for this user's blueprints
+    from .models import CommentSnapshot, Blueprint
+    user_blueprint_ids = Blueprint.objects.filter(
+        url__in=BlueprintSnapshot.objects.filter(
+            snapshot_ts__in=UserSnapshot.objects.filter(user_url=user_url).values('snapshot_ts')
+        ).values('blueprint__url')
+    ).values_list('id', flat=True)
+    all_comments = CommentSnapshot.objects.filter(
+        blueprint_id__in=user_blueprint_ids
+    ).select_related('blueprint').order_by('-created_utc')
+    seen = set()
+    unique_comments = []
+    for c in all_comments:
+        key = (c.blueprint_id, c.comment_id)
+        if key not in seen:
+            seen.add(key)
+            unique_comments.append(c)
+        if len(unique_comments) == 5:
+            break
+
     return render(request, 'monitoring/user_dashboard.html', {
         'fp_user_id': fp_user_id,
         'snapshots': snapshots,
         'user_url': user_url,
         'cutoff_time': cutoff_time,
         'snapshot_recent': snapshot_recent,
-        'blueprint_snapshots': blueprint_snapshots,  # NEW: Pass to template
+        'blueprint_snapshots': blueprint_snapshots,
+        'recent_comments': unique_comments,  # Pass unique comments to template
     })
 
 
