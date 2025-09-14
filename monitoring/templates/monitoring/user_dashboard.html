@@ -37,12 +37,12 @@
 <!-- Blueprints table -->
 {% if blueprint_snapshots %}
   <h3>Blueprints (Latest Snapshot)</h3>
-  <table>
+  <table id="blueprints-table">
     <thead>
       <tr>
-        <th>Name</th>
-        <th>Comments</th>
-        <th>Favorites</th>
+        <th data-sort="name" style="cursor:pointer;">Name &#x25B2;</th>
+        <th data-sort="comments" style="cursor:pointer;">Comments</th>
+        <th data-sort="favorites" style="cursor:pointer;">Favorites</th>
       </tr>
     </thead>
     <tbody>
@@ -55,6 +55,50 @@
       {% endfor %}
     </tbody>
   </table>
+  <script>
+    // Simple table sort for blueprints table
+    (function() {
+      function getCellValue(tr, idx) {
+        return tr.children[idx].innerText || tr.children[idx].textContent;
+      }
+      function comparer(idx, type, asc) {
+        return function(a, b) {
+          let v1 = getCellValue(asc ? a : b, idx);
+          let v2 = getCellValue(asc ? b : a, idx);
+          if(type === 'num') {
+            v1 = parseInt(v1, 10) || 0;
+            v2 = parseInt(v2, 10) || 0;
+            return v1 - v2;
+          }
+          return v1.localeCompare(v2);
+        };
+      }
+      const table = document.getElementById('blueprints-table');
+      if(!table) return;
+      const ths = table.querySelectorAll('th');
+      let sortCol = 0;
+      let asc = true;
+      // Initial sort by name
+      sortTable(0, 'str', true);
+      ths.forEach((th, idx) => {
+        th.addEventListener('click', function() {
+          let type = idx === 0 ? 'str' : 'num';
+          asc = sortCol === idx ? !asc : true;
+          sortCol = idx;
+          sortTable(idx, type, asc);
+          ths.forEach((h, i) => {
+            h.innerHTML = h.innerText.replace(/[\u25B2\u25BC]/g, '') + (i === idx ? (asc ? ' \u25B2' : ' \u25BC') : '');
+          });
+        });
+      });
+      function sortTable(idx, type, asc) {
+        const tbody = table.tBodies[0];
+        Array.from(tbody.querySelectorAll('tr'))
+          .sort(comparer(idx, type, asc))
+          .forEach(tr => tbody.appendChild(tr));
+      }
+    })();
+  </script>
 {% else %}
   <p>No blueprint data available</p>
 {% endif %}
