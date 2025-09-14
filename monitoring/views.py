@@ -79,10 +79,15 @@ def parse_csv_table(csv_string):
 # ... in your comments_between view:
 def comments_between(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    start = request.GET.get('start_date')
+    end = request.GET.get('end_date')
     csv_result, table_rows, error_msg = None, [], None
-    if request.method == "POST":
-        start = request.POST.get('start_date')
-        end = request.POST.get('end_date')
+    # If no end date, default to today
+    if not end:
+        from datetime import date
+        end = date.today().isoformat()
+    # Only call if both start and end are set
+    if start and end:
         csv_result = blueprints_with_new_comments(user_url, start, end)
         if csv_result.startswith("No snapshots") or csv_result.startswith("No blueprints"):
             error_msg = csv_result
@@ -93,4 +98,6 @@ def comments_between(request, fp_user_id):
         'csv_result': csv_result,
         'table_rows': table_rows,
         'error_msg': error_msg,
+        'start': start,
+        'end': end,
     })

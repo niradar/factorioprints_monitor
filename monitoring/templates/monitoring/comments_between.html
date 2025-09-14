@@ -2,7 +2,7 @@
 {% block title %}New Comments - {{ fp_user_id }}{% endblock %}
 {% block content %}
     <h2>New Comments for {{ fp_user_id }}</h2>
-    <form method="post">{% csrf_token %}
+    <form method="get">{% csrf_token %}
         Start date: <input name="start_date" type="date" required value="{{ start|default_if_none:'' }}">
         End date: <input name="end_date" type="date" required value="{{ end|default_if_none:'' }}">
         <button type="submit">Show</button>
@@ -14,7 +14,7 @@
 
     {% if table_rows %}
         <h3>Results</h3>
-        <table>
+        <table id="comments-table">
             <thead>
                 <tr>
                 {% for k in table_rows.0.keys %}
@@ -33,4 +33,24 @@
             </tbody>
         </table>
     {% endif %}
+{% endblock %}
+
+{% block tablesort_js %}
+{{ block.super }}
+<script>
+(function() {
+  var table = document.getElementById('comments-table');
+  if (!table) return;
+  var ths = table.querySelectorAll('th');
+  var targetCol = 0;
+  ths.forEach(function(th, idx) {
+    if (th.innerText.trim().toLowerCase() === 'num_of_new_comments') {
+      targetCol = idx;
+    }
+  });
+  window.makeTableSortable('comments-table', targetCol, Array.from(ths).map(function(_,i){return i===targetCol?'num':'str';}));
+  // Trigger click to sort descending (largest first)
+  ths[targetCol].click();
+})();
+</script>
 {% endblock %}

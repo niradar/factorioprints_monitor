@@ -28,5 +28,51 @@
     <footer style="margin-top:2em; color:#777;">
         &copy; 2025 Factorioprints Monitor
     </footer>
+    {% block tablesort_js %}
+    <script>
+    // Reusable table sort function, always available
+    window.makeTableSortable = function(tableId, defaultCol=0, colTypes=[]) {
+      var table = document.getElementById(tableId);
+      if(!table) return;
+      function getCellValue(tr, idx) {
+        return tr.children[idx].innerText || tr.children[idx].textContent;
+      }
+      function comparer(idx, type, asc) {
+        return function(a, b) {
+          let v1 = getCellValue(asc ? a : b, idx);
+          let v2 = getCellValue(asc ? b : a, idx);
+          if(type === 'num') {
+            v1 = parseInt(v1, 10) || 0;
+            v2 = parseInt(v2, 10) || 0;
+            return v1 - v2;
+          }
+          return v1.localeCompare(v2);
+        };
+      }
+      var ths = table.querySelectorAll('th');
+      var sortCol = defaultCol;
+      var asc = true;
+      sortTable(defaultCol, colTypes[defaultCol] || 'str', true);
+      ths.forEach(function(th, idx) {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', function() {
+          var type = colTypes[idx] || (idx === 0 ? 'str' : 'num');
+          asc = sortCol === idx ? !asc : true;
+          sortCol = idx;
+          sortTable(idx, type, asc);
+          ths.forEach(function(h, i) {
+            h.innerHTML = h.innerText.replace(/[\u25B2\u25BC]/g, '') + (i === idx ? (asc ? ' \u25B2' : ' \u25BC') : '');
+          });
+        });
+      });
+      function sortTable(idx, type, asc) {
+        var tbody = table.tBodies[0];
+        Array.from(tbody.querySelectorAll('tr'))
+          .sort(comparer(idx, type, asc))
+          .forEach(function(tr) { tbody.appendChild(tr); });
+      }
+    };
+    </script>
+    {% endblock %}
 </body>
 </html>
