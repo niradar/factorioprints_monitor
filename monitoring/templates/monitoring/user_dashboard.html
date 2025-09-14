@@ -18,17 +18,14 @@
     {% if snapshot_recent %}
         <span style="color: #888; margin-left: 1em;">(Disabled: snapshot recently taken)</span>
     {% endif %}
+    {% if snapshots and snapshots.0 %}
+        <span style="margin-left:2em; color:#333;">Last snapshot: {{ snapshots.0.snapshot_ts }}</span>
+    {% else %}
+        <span style="margin-left:2em; color:#888;">No snapshots yet.</span>
+    {% endif %}
 </form>
 
-<h3>Snapshots:</h3>
-<ul>
-  {% for snap in snapshots %}
-    <li>{{ snap.snapshot_ts }}</li>
-  {% empty %}
-    <li>No snapshots yet.</li>
-  {% endfor %}
-</ul>
-
+<p><a href="{% url 'user_snapshots' fp_user_id %}">View All Snapshots</a></p>
 
 <form method="get" action="{% url 'comments_between' fp_user_id %}">
     <button type="submit">Show Comments Between Dates</button>

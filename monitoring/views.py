@@ -118,3 +118,11 @@ def comments_between(request, fp_user_id):
         'start': start,
         'end': end,
     })
+
+def user_snapshots(request, fp_user_id):
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    snapshots = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts')
+    return render(request, 'monitoring/user_snapshots.html', {
+        'fp_user_id': fp_user_id,
+        'snapshots': snapshots,
+    })
