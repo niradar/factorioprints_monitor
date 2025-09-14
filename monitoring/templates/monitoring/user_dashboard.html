@@ -23,9 +23,10 @@
     {% else %}
         <span style="margin-left:2em; color:#888;">No snapshots yet.</span>
     {% endif %}
+    (<a href="{% url 'user_snapshots' fp_user_id %}">View All Snapshots</a>)
 </form>
 
-<p><a href="{% url 'user_snapshots' fp_user_id %}">View All Snapshots</a></p>
+
 
 <form method="get" action="{% url 'comments_between' fp_user_id %}">
     <button type="submit">Show Comments Between Dates</button>
