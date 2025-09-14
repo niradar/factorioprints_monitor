@@ -7,4 +7,16 @@
         <input name="user_url" type="url" required style="width:350px">
         <button type="submit">Go</button>
     </form>
+
+    {% if recent_user_infos %}
+    <h3>Recent users</h3>
+    <ul>
+        {% for u in recent_user_infos %}
+        <li>
+            <a href="{% url 'user_dashboard' fp_user_id=u.fp_user_id %}">{{ u.user_url }}</a>
+            <small>(last snapshot: {{ u.latest_ts|date:"Y-m-d H:i" }})</small>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
 {% endblock %}

@@ -20,9 +20,26 @@ def home(request):
     if request.method == "POST":
         user_url = request.POST.get('user_url')
         fp_user_id = extract_fp_user_id(user_url)
-        # Optionally: save initial UserSnapshot or "watched user" in DB if not exists
         return redirect('user_dashboard', fp_user_id=fp_user_id)
-    return render(request, 'monitoring/home.html')
+
+    # Get recent user_urls from UserSnapshot, ordered by latest snapshot
+    # Use distinct user_url, order by latest snapshot_ts
+    from django.db.models import Max
+    recent_users = (
+        UserSnapshot.objects.values('user_url')
+        .annotate(latest_ts=Max('snapshot_ts'))
+        .order_by('-latest_ts')[:5]
+    )
+    # Prepare for template: list of dicts with user_url, fp_user_id, latest_ts
+    recent_user_infos = [
+        {
+            'user_url': u['user_url'],
+            'fp_user_id': extract_fp_user_id(u['user_url']),
+            'latest_ts': u['latest_ts'],
+        }
+        for u in recent_users
+    ]
+    return render(request, 'monitoring/home.html', {'recent_user_infos': recent_user_infos})
 
 
 
