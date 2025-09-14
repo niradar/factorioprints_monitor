@@ -2,6 +2,9 @@
 
 from django.core.management.base import BaseCommand
 from monitoring.utils import take_snapshot
+import  logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = "Take a snapshot of all blueprints and comments for a FactorioPrints user."
