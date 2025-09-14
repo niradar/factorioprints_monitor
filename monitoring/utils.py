@@ -99,26 +99,46 @@ def get_latest_blueprints(user_url):
     ).select_related('blueprint')
 
 
-def blueprints_with_new_comments(user_url: str, start_date: str, end_date: str) -> str:
+def blueprints_with_new_comments(user_url: str, start_date: str, end_date: str, allow_nearest: bool = True) -> str:
     """
     Returns a CSV string of all blueprints for a user that received new comments between two dates.
     Each row: blueprint_url, blueprint_name, num_of_new_comments, comments_num_on_end_date
+    If allow_nearest is True, will use the closest snapshot within the range if an exact date match is missing.
     """
     # Parse as date (ignore hour)
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
+    qs = UserSnapshot.objects.filter(user_url=user_url)
+    if not qs.exists():
+        return f"No snapshots found for user {user_url}."
+
     # Find the latest snapshot for each date (if available)
-    start_snapshot_qs = UserSnapshot.objects.filter(user_url=user_url, snapshot_ts__date=start_date_obj).order_by('-snapshot_ts')
-    end_snapshot_qs = UserSnapshot.objects.filter(user_url=user_url, snapshot_ts__date=end_date_obj).order_by('-snapshot_ts')
+    start_snapshot_qs = qs.filter(snapshot_ts__date=start_date_obj).order_by('-snapshot_ts')
+    end_snapshot_qs = qs.filter(snapshot_ts__date=end_date_obj).order_by('-snapshot_ts')
 
-    if not start_snapshot_qs.exists():
+    start_snapshot_ts = None
+    end_snapshot_ts = None
+
+    if start_snapshot_qs.exists():
+        start_snapshot_ts = start_snapshot_qs.first().snapshot_ts
+    elif allow_nearest:
+        # Find the first snapshot >= start_date and <= end_date
+        nearest_start_qs = qs.filter(snapshot_ts__date__gte=start_date_obj, snapshot_ts__date__lte=end_date_obj).order_by('snapshot_ts')
+        if nearest_start_qs.exists():
+            start_snapshot_ts = nearest_start_qs.first().snapshot_ts
+    if end_snapshot_qs.exists():
+        end_snapshot_ts = end_snapshot_qs.first().snapshot_ts
+    elif allow_nearest:
+        # Find the last snapshot <= end_date and >= start_date
+        nearest_end_qs = qs.filter(snapshot_ts__date__lte=end_date_obj, snapshot_ts__date__gte=start_date_obj).order_by('-snapshot_ts')
+        if nearest_end_qs.exists():
+            end_snapshot_ts = nearest_end_qs.first().snapshot_ts
+
+    if not start_snapshot_ts:
         return f"No snapshots found for start date {start_date}."
-    if not end_snapshot_qs.exists():
+    if not end_snapshot_ts:
         return f"No snapshots found for end date {end_date}."
-
-    start_snapshot_ts = start_snapshot_qs.first().snapshot_ts
-    end_snapshot_ts = end_snapshot_qs.first().snapshot_ts
 
     # Get blueprints that existed at the end date
     end_blueprints = BlueprintSnapshot.objects.filter(snapshot_ts=end_snapshot_ts)
