@@ -27,18 +27,26 @@ Run a RabbitMQ docker container:
 To install the dependencies using uv:
 
 ```bash
-uv venv
-.venv\Scripts\Activate
-uv pip install . 
+uv sync
 playwright install
 ```
 
 Optional (for development):
 ```bash
-uv pip install -e .[dev]
+uv sync --extra dev
 ```
 
-## 3. Usage: Django Management Commands
+## 3. Usage: Django Interface
+
+On Windows, run:
+```bash
+run_server.bat
+```
+
+Open your browser and navigate to `http://localhost:8129/` to access the web interface.
+
+
+## 4. Usage: Django Management Commands
 
 After setting up your Django project and running migrations, you can collect and view blueprint and comment snapshots using the following management commands:
 
