@@ -3,13 +3,6 @@
 {% block content %}
 <h2>User Dashboard: {{ fp_user_id }}</h2>
 
-{% if snapshots and snapshots.0 and snapshots.0.snapshot_ts > cutoff_time %}
-    <div class="info" style="color:#0074d9; margin-bottom:1em;">
-        A snapshot was just started or completed within the last hour.<br>
-        It may take a minute to finish processing. Please refresh this page to see updates.
-    </div>
-{% endif %}
-
 <form method="post" action="{% url 'take_snapshot' fp_user_id %}">
     {% csrf_token %}
     <button type="submit" {% if snapshot_recent %}disabled style="background:#ccc; color:#888; cursor:not-allowed;"{% endif %}>
@@ -29,7 +22,7 @@
 
 
 {% if recent_comments %}
-  <h3>Last 5 Comments</h3>
+  <h3>Last 10 Comments</h3>
   <ul>
     {% for comment in recent_comments %}
       <li>

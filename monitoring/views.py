@@ -59,7 +59,7 @@ def user_dashboard(request, fp_user_id):
             snapshot_ts=latest_snapshot.snapshot_ts
         ).order_by('name')
 
-    # Get last 5 unique comments for this user's blueprints
+    # Get last 10 unique comments for this user's blueprints
     from .models import CommentSnapshot, Blueprint
     user_blueprint_ids = Blueprint.objects.filter(
         url__in=BlueprintSnapshot.objects.filter(
@@ -76,7 +76,7 @@ def user_dashboard(request, fp_user_id):
         if key not in seen:
             seen.add(key)
             unique_comments.append(c)
-        if len(unique_comments) == 5:
+        if len(unique_comments) == 10:
             break
 
     return render(request, 'monitoring/user_dashboard.html', {
