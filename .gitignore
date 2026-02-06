@@ -30,12 +30,16 @@ ENV/
 # IDE
 .idea/
 .vscode/
+.run/
 *.swp
 *.swo
 .project
 .pydevproject
 .settings/
 
+
+# Database
+db.sqlite3
 
 # OS-specific
 .DS_Store
