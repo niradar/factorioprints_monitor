@@ -60,24 +60,22 @@ def user_dashboard(request, fp_user_id):
         ).order_by('name')
 
     # Get last 10 unique comments for this user's blueprints
-    from .models import CommentSnapshot, Blueprint
-    user_blueprint_ids = Blueprint.objects.filter(
-        url__in=BlueprintSnapshot.objects.filter(
-            snapshot_ts__in=UserSnapshot.objects.filter(user_url=user_url).values('snapshot_ts')
-        ).values('blueprint__url')
-    ).values_list('id', flat=True)
-    all_comments = CommentSnapshot.objects.filter(
-        blueprint_id__in=user_blueprint_ids
-    ).select_related('blueprint').order_by('-created_utc')
-    seen = set()
-    unique_comments = []
-    for c in all_comments:
-        key = (c.blueprint_id, c.comment_id)
-        if key not in seen:
-            seen.add(key)
-            unique_comments.append(c)
-        if len(unique_comments) == 10:
-            break
+    from django.db.models import Max
+    from .models import CommentSnapshot
+    user_blueprint_ids = BlueprintSnapshot.objects.filter(
+        snapshot_ts__in=UserSnapshot.objects.filter(user_url=user_url).values('snapshot_ts')
+    ).values_list('blueprint_id', flat=True)
+    latest_per_comment = (
+        CommentSnapshot.objects.filter(blueprint_id__in=user_blueprint_ids)
+        .values('blueprint_id', 'comment_id')
+        .annotate(latest_id=Max('id'))
+        .values_list('latest_id', flat=True)
+    )
+    unique_comments = list(
+        CommentSnapshot.objects.filter(id__in=latest_per_comment)
+        .select_related('blueprint')
+        .order_by('-created_utc')[:10]
+    )
 
     return render(request, 'monitoring/user_dashboard.html', {
         'fp_user_id': fp_user_id,
