@@ -23,6 +23,16 @@
         </nav>
     </header>
     <div class="container">
+        {% if messages %}
+        <ul class="messages" style="list-style:none; padding:0; margin:0 0 1.5em 0;">
+            {% for message in messages %}
+            <li style="padding:0.75em 1em; margin-bottom:0.5em; border-radius:6px; border:1px solid #ccc;
+                       background:{% if message.tags == 'warning' %}#fff3cd{% elif message.tags == 'error' %}#f8d7da{% else %}#d1ecf1{% endif %};">
+                {{ message }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
         {% block content %}{% endblock %}
     </div>
     <footer style="margin-top:2em; color:#777;">

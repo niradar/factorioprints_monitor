@@ -5,21 +5,9 @@ Monitor user blueprints on Factorioprints.com and receive notifications when new
 
 ## 1. Prerequisites
 
-### Docker
-
-Make sure you have Docker installed and running on your machine.
-You can download it from [Docker's official site](https://www.docker.com/get-started).
-
 ### uv
 
 If needed, install [uv](https://github.com/astral-sh/uv), a Python package manager that simplifies virtual environments and dependency management.
-
-
-### RabbitMQ
-
-Run a RabbitMQ docker container:
-
-    docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management
 
 
 ## 2. Installation
@@ -106,7 +94,7 @@ python manage.py delete_snapshot --timestamp 2025-06-05T08:00:00+00:00
 ### Notes
 
 * These commands are **run from your Django project root directory**.
-* You can add these commands to a cron job or call them from a task queue (e.g., Celery) for automation.
+* For automatic snapshots, schedule `run_snapshot.bat "<user_url>"` with Windows Task Scheduler (or `take_snapshot` via cron). No web server or message broker is required.
 * Snapshots can take up to several minutes to complete, depending on the number of blueprints and comments.
 * All scraping logic is handled server-side; no browser or manual interaction is required.
 

@@ -31,6 +31,34 @@ class BlueprintSnapshot(models.Model):
     def __str__(self):
         return f"{self.blueprint.name} at {self.snapshot_ts}"
 
+class SnapshotRun(models.Model):
+    """Tracks the lifecycle of a single snapshot attempt (status + outcome).
+
+    A UserSnapshot row is only written on success, so this model is what makes
+    a still-running or failed run observable in the UI.
+    """
+    RUNNING = 'running'
+    SUCCESS = 'success'
+    FAILED = 'failed'
+    STATUS_CHOICES = [
+        (RUNNING, 'Running'),
+        (SUCCESS, 'Success'),
+        (FAILED, 'Failed'),
+    ]
+
+    user_url = models.URLField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=RUNNING)
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    snapshot_ts = models.DateTimeField(null=True, blank=True)  # set on success
+    error = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f"SnapshotRun({self.user_url}, {self.status}, started {self.started_at})"
+
 class CommentSnapshot(models.Model):
     snapshot_ts = models.DateTimeField()
     blueprint = models.ForeignKey(Blueprint, on_delete=models.CASCADE, related_name='comment_snapshots')

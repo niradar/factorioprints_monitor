@@ -2,10 +2,10 @@ import json
 from datetime import datetime, timedelta, timezone as dt_timezone
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from monitoring.models import Blueprint, UserSnapshot, BlueprintSnapshot, CommentSnapshot
+from monitoring.models import Blueprint, UserSnapshot, BlueprintSnapshot, CommentSnapshot, SnapshotRun
 from monitoring.comments_scraper import _extract_thread_data, _normalize
 
 class BlueprintModelTest(TestCase):
@@ -231,6 +231,29 @@ class UniqueCommentsQueryTest(TestCase):
             .order_by('-created_utc')[:10]
         )
         self.assertEqual(results, [])
+
+    def test_util_matches_inline_query(self):
+        from monitoring.utils import get_recent_unique_comments
+        util = [(c.blueprint_id, c.comment_id) for c in get_recent_unique_comments(self.user_url, limit=10)]
+        new = [(c.blueprint_id, c.comment_id) for c in self._new_query()]
+        self.assertEqual(util, new)
+
+    def test_util_no_limit_returns_all_unique(self):
+        from monitoring.utils import get_recent_unique_comments
+        results = list(get_recent_unique_comments(self.user_url))
+        self.assertEqual(len(results), 15)  # 3 blueprints x 5 unique comments
+        keys = [(c.blueprint_id, c.comment_id) for c in results]
+        self.assertEqual(len(keys), len(set(keys)))
+
+    def test_util_limit_applied(self):
+        from monitoring.utils import get_recent_unique_comments
+        self.assertEqual(len(list(get_recent_unique_comments(self.user_url, limit=5))), 5)
+
+    def test_util_empty_user_returns_empty(self):
+        from monitoring.utils import get_recent_unique_comments
+        self.assertEqual(
+            list(get_recent_unique_comments("https://factorioprints.com/user/nobody")), []
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -606,15 +629,35 @@ class BlueprintsWithNewCommentsTest(TestCase):
         self.assertIn("No snapshots found for end date", result)
 
     def test_nearest_date_fallback(self):
-        """Dates between snapshots should find nearest within range."""
+        """Window 06-02..06-04: both boundaries resolve to the 06-01 snapshot
+        (latest on or before each date), so there are no new comments."""
         from monitoring.utils import blueprints_with_new_comments
-        # No snapshot on June 2 or June 4, but nearest fallback finds June 1 and June 5
         result = blueprints_with_new_comments(self.user_url, "2025-06-02", "2025-06-04")
-        # Nearest start -> June 5 (first >= June 2), nearest end -> June 5 (last <= June 4 doesn't exist,
-        # but last <= June 4 and >= June 2 is June 5? No — June 5 > June 4. Let's check the logic.
-        # Actually nearest_start finds first snapshot >= start and <= end -> nothing between June 2 and June 4
-        # So this should fail to find snapshots.
-        self.assertIn("No snapshots found", result)
+        self.assertEqual(result, "No blueprints received new comments in this period.")
+
+    def test_baseline_uses_latest_snapshot_on_or_before_start(self):
+        """Regression: a start date with no snapshot in-range must diff against the
+        latest snapshot on or before it (06-01), not collapse onto the end snapshot."""
+        from monitoring.utils import blueprints_with_new_comments
+        import csv
+        from io import StringIO
+        # 06-03..06-05: only 06-05 is in range, but baseline must be 06-01.
+        result = blueprints_with_new_comments(self.user_url, "2025-06-03", "2025-06-05")
+        self.assertIn("blueprint_url", result)
+        rows = {r["blueprint_url"]: r for r in csv.DictReader(StringIO(result))}
+        self.assertEqual(rows["https://fp.com/bp/1"]["num_of_new_comments"], "1")
+        self.assertEqual(rows["https://fp.com/bp/2"]["num_of_new_comments"], "2")
+
+    def test_start_before_all_snapshots_counts_all_as_new(self):
+        """If the start date precedes every snapshot, the baseline is empty and all
+        comments present at the end count as new."""
+        from monitoring.utils import blueprints_with_new_comments
+        import csv
+        from io import StringIO
+        result = blueprints_with_new_comments(self.user_url, "2025-01-01", "2025-06-05")
+        rows = {r["blueprint_url"]: r for r in csv.DictReader(StringIO(result))}
+        self.assertEqual(rows["https://fp.com/bp/1"]["num_of_new_comments"], "3")
+        self.assertEqual(rows["https://fp.com/bp/2"]["num_of_new_comments"], "3")
 
     def test_nearest_fallback_finds_within_range(self):
         """Add a snapshot on June 3 so nearest fallback succeeds."""
@@ -637,3 +680,245 @@ class BlueprintsWithNewCommentsTest(TestCase):
         result = blueprints_with_new_comments(self.user_url, "2025-06-02", "2025-06-06")
         self.assertIn("blueprint_url", result)
         self.assertIn("num_of_new_comments", result)
+
+
+# ---------------------------------------------------------------------------
+# Snapshot trigger tests (background thread + server-side cooldown)
+# ---------------------------------------------------------------------------
+
+from django.urls import reverse
+
+
+class IsInCooldownTest(TestCase):
+    def setUp(self):
+        self.user_url = "https://factorioprints.com/user/u1"
+
+    def test_no_snapshots_not_in_cooldown(self):
+        from monitoring.views import is_in_cooldown
+        self.assertFalse(is_in_cooldown(self.user_url))
+
+    def test_recent_snapshot_in_cooldown(self):
+        from monitoring.views import is_in_cooldown
+        UserSnapshot.objects.create(snapshot_ts=timezone.now(), user_url=self.user_url)
+        self.assertTrue(is_in_cooldown(self.user_url))
+
+    def test_old_snapshot_not_in_cooldown(self):
+        from monitoring.views import is_in_cooldown
+        UserSnapshot.objects.create(
+            snapshot_ts=timezone.now() - timedelta(hours=2), user_url=self.user_url
+        )
+        self.assertFalse(is_in_cooldown(self.user_url))
+
+    def test_other_user_snapshot_ignored(self):
+        from monitoring.views import is_in_cooldown
+        UserSnapshot.objects.create(
+            snapshot_ts=timezone.now(),
+            user_url="https://factorioprints.com/user/other",
+        )
+        self.assertFalse(is_in_cooldown(self.user_url))
+
+
+class StartSnapshotAsyncTest(TransactionTestCase):
+    """Real-thread tests — use TransactionTestCase so the worker thread's
+    separate DB connection can see/commit rows (a TestCase transaction would
+    hide the run row from the thread)."""
+
+    def _make_run(self, user_url="https://factorioprints.com/user/u1"):
+        return SnapshotRun.objects.create(user_url=user_url, status=SnapshotRun.RUNNING)
+
+    @patch("monitoring.views.take_snapshot")
+    def test_runs_take_snapshot_in_background_thread(self, mock_take):
+        mock_take.return_value = timezone.now()
+        from monitoring.views import start_snapshot_async
+        run = self._make_run()
+        thread = start_snapshot_async("https://factorioprints.com/user/u1", run.id)
+        thread.join(timeout=5)
+        self.assertFalse(thread.is_alive())
+        mock_take.assert_called_once_with("https://factorioprints.com/user/u1")
+
+    @patch("monitoring.views.take_snapshot")
+    def test_thread_is_daemon(self, mock_take):
+        mock_take.return_value = timezone.now()
+        from monitoring.views import start_snapshot_async
+        run = self._make_run()
+        thread = start_snapshot_async("https://factorioprints.com/user/u1", run.id)
+        self.assertTrue(thread.daemon)
+        thread.join(timeout=5)
+
+    @patch("monitoring.views.take_snapshot")
+    def test_success_marks_run_success(self, mock_take):
+        ts = timezone.now()
+        mock_take.return_value = ts
+        from monitoring.views import start_snapshot_async
+        run = self._make_run()
+        thread = start_snapshot_async("https://factorioprints.com/user/u1", run.id)
+        thread.join(timeout=5)
+        run.refresh_from_db()
+        self.assertEqual(run.status, SnapshotRun.SUCCESS)
+        self.assertIsNotNone(run.finished_at)
+        self.assertEqual(run.snapshot_ts, ts)
+
+    @patch("monitoring.views.take_snapshot", side_effect=RuntimeError("boom"))
+    def test_failure_marks_run_failed_and_logs(self, mock_take):
+        """A failing snapshot must not crash silently — it's logged and recorded."""
+        from monitoring.views import start_snapshot_async
+        run = self._make_run()
+        with self.assertLogs("monitoring.views", level="ERROR") as cm:
+            thread = start_snapshot_async("https://factorioprints.com/user/u1", run.id)
+            thread.join(timeout=5)
+        self.assertFalse(thread.is_alive())
+        run.refresh_from_db()
+        self.assertEqual(run.status, SnapshotRun.FAILED)
+        self.assertIn("boom", run.error)
+        self.assertTrue(any("Snapshot failed" in line for line in cm.output))
+
+
+class TakeSnapshotViewTest(TestCase):
+    def setUp(self):
+        self.fp_user_id = "u1"
+        self.user_url = "https://factorioprints.com/user/u1"
+        self.url = reverse("take_snapshot", args=[self.fp_user_id])
+        self.dashboard_url = reverse("user_dashboard", args=[self.fp_user_id])
+
+    @patch("monitoring.views.start_snapshot_async")
+    def test_starts_snapshot_when_idle(self, mock_start):
+        from django.contrib.messages import get_messages
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.status_code, 302)
+        # A RUNNING SnapshotRun is created and its id passed to the worker
+        mock_start.assert_called_once()
+        called_url, called_run_id = mock_start.call_args.args
+        self.assertEqual(called_url, self.user_url)
+        self.assertTrue(
+            SnapshotRun.objects.filter(
+                id=called_run_id, user_url=self.user_url, status=SnapshotRun.RUNNING
+            ).exists()
+        )
+        msgs = [str(m) for m in get_messages(resp.wsgi_request)]
+        self.assertTrue(any("started" in m for m in msgs))
+
+    @patch("monitoring.views.start_snapshot_async")
+    def test_skips_when_in_cooldown(self, mock_start):
+        from django.contrib.messages import get_messages
+        UserSnapshot.objects.create(snapshot_ts=timezone.now(), user_url=self.user_url)
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.status_code, 302)
+        mock_start.assert_not_called()
+        msgs = [str(m) for m in get_messages(resp.wsgi_request)]
+        self.assertTrue(any("skipped" in m for m in msgs))
+
+    @patch("monitoring.views.start_snapshot_async")
+    def test_skips_when_already_running(self, mock_start):
+        from django.contrib.messages import get_messages
+        SnapshotRun.objects.create(user_url=self.user_url, status=SnapshotRun.RUNNING)
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.status_code, 302)
+        mock_start.assert_not_called()
+        msgs = [str(m) for m in get_messages(resp.wsgi_request)]
+        self.assertTrue(any("already running" in m for m in msgs))
+
+    @patch("monitoring.views.start_snapshot_async")
+    def test_redirects_to_dashboard(self, mock_start):
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.url, self.dashboard_url)
+
+
+class IsSnapshotRunningTest(TestCase):
+    def setUp(self):
+        self.user_url = "https://factorioprints.com/user/u1"
+
+    def test_no_runs(self):
+        from monitoring.views import is_snapshot_running
+        self.assertFalse(is_snapshot_running(self.user_url))
+
+    def test_running_recent(self):
+        from monitoring.views import is_snapshot_running
+        SnapshotRun.objects.create(user_url=self.user_url, status=SnapshotRun.RUNNING)
+        self.assertTrue(is_snapshot_running(self.user_url))
+
+    def test_success_not_running(self):
+        from monitoring.views import is_snapshot_running
+        SnapshotRun.objects.create(user_url=self.user_url, status=SnapshotRun.SUCCESS)
+        self.assertFalse(is_snapshot_running(self.user_url))
+
+    def test_failed_not_running(self):
+        from monitoring.views import is_snapshot_running
+        SnapshotRun.objects.create(user_url=self.user_url, status=SnapshotRun.FAILED)
+        self.assertFalse(is_snapshot_running(self.user_url))
+
+    def test_stale_running_ignored(self):
+        from monitoring.views import is_snapshot_running
+        run = SnapshotRun.objects.create(user_url=self.user_url, status=SnapshotRun.RUNNING)
+        # started_at is auto_now_add; force it stale via update (bypasses auto_now_add)
+        SnapshotRun.objects.filter(id=run.id).update(
+            started_at=timezone.now() - timedelta(hours=2)
+        )
+        self.assertFalse(is_snapshot_running(self.user_url))
+
+    def test_other_user_running_ignored(self):
+        from monitoring.views import is_snapshot_running
+        SnapshotRun.objects.create(
+            user_url="https://factorioprints.com/user/other", status=SnapshotRun.RUNNING
+        )
+        self.assertFalse(is_snapshot_running(self.user_url))
+
+
+class RecentCommentsViewTest(TestCase):
+    def setUp(self):
+        self.fp_user_id = "u1"
+        self.user_url = "https://factorioprints.com/user/u1"
+        self.ts = timezone.now()
+        UserSnapshot.objects.create(snapshot_ts=self.ts, user_url=self.user_url)
+        self.bp = Blueprint.objects.create(url="https://fp.com/bp/1", name="BP One")
+        BlueprintSnapshot.objects.create(
+            snapshot_ts=self.ts, blueprint=self.bp, name="BP One",
+            favourites=0, total_comments=1,
+        )
+        CommentSnapshot.objects.create(
+            snapshot_ts=self.ts, blueprint=self.bp, comment_id="c1",
+            author="alice", created_utc=self.ts, message_text="hi",
+        )
+
+    def test_renders_comments(self):
+        resp = self.client.get(reverse("recent_comments", args=[self.fp_user_id]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "BP One")
+        self.assertContains(resp, "alice")
+
+    def test_paginates_when_over_page_size(self):
+        # 1 comment in setUp + 60 more = 61 unique → 2 pages at 50/page
+        for i in range(60):
+            CommentSnapshot.objects.create(
+                snapshot_ts=self.ts, blueprint=self.bp, comment_id=f"x{i}",
+                author="a", created_utc=self.ts, message_text="m",
+            )
+        resp = self.client.get(reverse("recent_comments", args=[self.fp_user_id]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["page_obj"].paginator.count, 61)
+        self.assertEqual(resp.context["page_obj"].paginator.num_pages, 2)
+        self.assertEqual(len(resp.context["page_obj"].object_list), 50)
+        resp2 = self.client.get(reverse("recent_comments", args=[self.fp_user_id]) + "?page=2")
+        self.assertEqual(len(resp2.context["page_obj"].object_list), 11)
+
+
+class SnapshotRunModelTest(TestCase):
+    def test_defaults(self):
+        run = SnapshotRun.objects.create(user_url="https://factorioprints.com/user/u1")
+        self.assertEqual(run.status, SnapshotRun.RUNNING)
+        self.assertIsNotNone(run.started_at)
+        self.assertIsNone(run.finished_at)
+        self.assertIsNone(run.snapshot_ts)
+        self.assertEqual(run.error, "")
+
+    def test_ordering_latest_first(self):
+        url = "https://factorioprints.com/user/u1"
+        old = SnapshotRun.objects.create(user_url=url)
+        SnapshotRun.objects.filter(id=old.id).update(
+            started_at=timezone.now() - timedelta(hours=1)
+        )
+        new = SnapshotRun.objects.create(user_url=url)
+        self.assertEqual(SnapshotRun.objects.first().id, new.id)
+
+    def test_str_contains_status(self):
+        run = SnapshotRun.objects.create(user_url="https://factorioprints.com/user/u1")
+        self.assertIn("running", str(run))

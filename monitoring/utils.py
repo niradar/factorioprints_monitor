@@ -80,6 +80,35 @@ def take_snapshot(user_url: str) -> datetime:
     return snapshot_ts
 
 
+def get_recent_unique_comments(user_url, limit=None):
+    """Return the latest unique (blueprint, comment_id) CommentSnapshots for a
+    user's blueprints, newest first. The same comment is captured in every
+    snapshot, so we keep only the most recent row per (blueprint, comment_id).
+
+    `limit` caps the number of rows (None returns all). Returns a queryset.
+    """
+    from django.db.models import Max
+
+    user_blueprint_ids = BlueprintSnapshot.objects.filter(
+        snapshot_ts__in=UserSnapshot.objects.filter(user_url=user_url).values('snapshot_ts')
+    ).values_list('blueprint_id', flat=True)
+
+    latest_per_comment = (
+        CommentSnapshot.objects.filter(blueprint_id__in=user_blueprint_ids)
+        .values('blueprint_id', 'comment_id')
+        .annotate(latest_id=Max('id'))
+        .values_list('latest_id', flat=True)
+    )
+    qs = (
+        CommentSnapshot.objects.filter(id__in=latest_per_comment)
+        .select_related('blueprint')
+        .order_by('-created_utc')
+    )
+    if limit is not None:
+        qs = qs[:limit]
+    return qs
+
+
 def list_snapshots(user_url=None):
     """Return all snapshot timestamps (optionally filtered by user_url)"""
     qs = UserSnapshot.objects.all()
@@ -113,39 +142,38 @@ def blueprints_with_new_comments(user_url: str, start_date: str, end_date: str, 
     if not qs.exists():
         return f"No snapshots found for user {user_url}."
 
-    # Find the latest snapshot for each date (if available)
-    start_snapshot_qs = qs.filter(snapshot_ts__date=start_date_obj).order_by('-snapshot_ts')
-    end_snapshot_qs = qs.filter(snapshot_ts__date=end_date_obj).order_by('-snapshot_ts')
-
-    start_snapshot_ts = None
+    # End boundary: the snapshot state as of end_date (latest on or before it).
     end_snapshot_ts = None
-
-    if start_snapshot_qs.exists():
-        start_snapshot_ts = start_snapshot_qs.first().snapshot_ts
+    exact_end = qs.filter(snapshot_ts__date=end_date_obj).order_by('-snapshot_ts').first()
+    if exact_end:
+        end_snapshot_ts = exact_end.snapshot_ts
     elif allow_nearest:
-        # Find the first snapshot >= start_date and <= end_date
-        nearest_start_qs = qs.filter(snapshot_ts__date__gte=start_date_obj, snapshot_ts__date__lte=end_date_obj).order_by('snapshot_ts')
-        if nearest_start_qs.exists():
-            start_snapshot_ts = nearest_start_qs.first().snapshot_ts
-    if end_snapshot_qs.exists():
-        end_snapshot_ts = end_snapshot_qs.first().snapshot_ts
-    elif allow_nearest:
-        # Find the last snapshot <= end_date and >= start_date
-        nearest_end_qs = qs.filter(snapshot_ts__date__lte=end_date_obj, snapshot_ts__date__gte=start_date_obj).order_by('-snapshot_ts')
-        if nearest_end_qs.exists():
-            end_snapshot_ts = nearest_end_qs.first().snapshot_ts
-
-    if not start_snapshot_ts:
-        return f"No snapshots found for start date {start_date}."
+        nearest_end = qs.filter(snapshot_ts__date__lte=end_date_obj).order_by('-snapshot_ts').first()
+        if nearest_end:
+            end_snapshot_ts = nearest_end.snapshot_ts
     if not end_snapshot_ts:
         return f"No snapshots found for end date {end_date}."
+
+    # Start boundary: the baseline state as of start_date (latest on or before it).
+    # With allow_nearest, if there is no snapshot at/before start_date the baseline
+    # is empty (count 0), so all comments present at the end count as new.
+    start_snapshot_ts = None
+    exact_start = qs.filter(snapshot_ts__date=start_date_obj).order_by('-snapshot_ts').first()
+    if exact_start:
+        start_snapshot_ts = exact_start.snapshot_ts
+    elif allow_nearest:
+        nearest_start = qs.filter(snapshot_ts__date__lte=start_date_obj).order_by('-snapshot_ts').first()
+        if nearest_start:
+            start_snapshot_ts = nearest_start.snapshot_ts
+    else:
+        return f"No snapshots found for start date {start_date}."
 
     # Get blueprints that existed at the end date
     end_blueprints = BlueprintSnapshot.objects.filter(snapshot_ts=end_snapshot_ts)
     result_rows = []
     for bp_snap in end_blueprints:
-        # Count comments at start and end
-        comments_at_start = CommentSnapshot.objects.filter(
+        # Count comments at the baseline (0 if there's no baseline snapshot) and at end
+        comments_at_start = 0 if start_snapshot_ts is None else CommentSnapshot.objects.filter(
             snapshot_ts=start_snapshot_ts,
             blueprint=bp_snap.blueprint
         ).count()
