@@ -11,10 +11,10 @@
 </head>
 <body>
   <aside class="side">
-    <div class="brand">
+    <a class="brand" href="{% url 'inbox' fp_user_id %}" title="Inbox">
       <div class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
-      <div><div class="name">FP&nbsp;Monitor</div><div class="tag">comment watch</div></div>
-    </div>
+      <div><div class="name">FP&nbsp;Monitor</div><div class="tag">comment inbox</div></div>
+    </a>
 
     <nav class="nav">
       <a class="{% if active_nav == 'inbox' %}active{% endif %}" href="{% url 'inbox' fp_user_id %}">
