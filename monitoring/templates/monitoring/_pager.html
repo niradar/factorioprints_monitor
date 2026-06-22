@@ -1,6 +1,8 @@
-{# Shared pagination footer. Expects: page_obj, page_range, qs (base querystring
-   without page), pager_hidden (dict of fields the per-page form must keep),
-   per_page, per_page_options. #}
+{% comment %}
+Shared pagination footer. Expects: page_obj, page_range, qs (base querystring
+without page), pager_hidden (dict of fields the per-page form must keep),
+per_page, per_page_options.
+{% endcomment %}
 {% if page_obj.paginator.count %}
 <div class="pager">
   <span class="left">

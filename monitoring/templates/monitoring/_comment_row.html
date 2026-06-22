@@ -1,7 +1,9 @@
 {% load inbox_extras %}
-{# One comment row. On the inbox the blueprint name is the anchor (links to
-   detail); on a blueprint page pass hide_blueprint=True to anchor on the author
-   instead, since the blueprint is implied. #}
+{% comment %}
+One comment row. On the inbox the blueprint name is the anchor (links to
+detail); on a blueprint page pass hide_blueprint=True to anchor on the author
+instead, since the blueprint is implied.
+{% endcomment %}
 <div class="crow{% if comment.is_handled %} is-done{% endif %}">
   <div class="av">{{ comment.author|first }}</div>
   <div class="col">
