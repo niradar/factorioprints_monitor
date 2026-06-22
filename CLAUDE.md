@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Django web app that monitors user blueprints on factorioprints.com and tracks new comments. Uses Playwright for headless browser scraping and SQLite for storage. Snapshots triggered from the web UI run in a background thread; scheduled snapshots are driven externally (e.g. Windows Task Scheduler) via the `take_snapshot` management command.
 
-The web UI is a single-user, design-system app centered on a comment **inbox** (find new comments, reply on factorioprints, mark done), plus a blueprints list, per-blueprint trend charts, settings, an About page, and an onboarding landing screen — see the Frontend section below. (The original dashboard/`comments_between`/`base.html` pages have been removed.)
+The web UI is a single-user, design-system app centered on a comment **inbox** (find new comments, reply on factorioprints, mark done), plus a blueprints list, per-blueprint trend charts, settings, an About page, and an onboarding landing screen — see the Frontend section below.
 
 ## Common Commands
 
