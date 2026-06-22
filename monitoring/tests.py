@@ -778,7 +778,7 @@ class TakeSnapshotViewTest(TestCase):
         self.fp_user_id = "u1"
         self.user_url = "https://factorioprints.com/user/u1"
         self.url = reverse("take_snapshot", args=[self.fp_user_id])
-        self.dashboard_url = reverse("user_dashboard", args=[self.fp_user_id])
+        self.inbox_url = reverse("inbox", args=[self.fp_user_id])
 
     @patch("monitoring.views.start_snapshot_async")
     def test_starts_snapshot_when_idle(self, mock_start):
@@ -818,9 +818,9 @@ class TakeSnapshotViewTest(TestCase):
         self.assertTrue(any("already running" in m for m in msgs))
 
     @patch("monitoring.views.start_snapshot_async")
-    def test_redirects_to_dashboard(self, mock_start):
+    def test_redirects_to_inbox(self, mock_start):
         resp = self.client.post(self.url)
-        self.assertEqual(resp.url, self.dashboard_url)
+        self.assertEqual(resp.url, self.inbox_url)
 
 
 class IsSnapshotRunningTest(TestCase):
@@ -861,44 +861,6 @@ class IsSnapshotRunningTest(TestCase):
             user_url="https://factorioprints.com/user/other", status=SnapshotRun.RUNNING
         )
         self.assertFalse(is_snapshot_running(self.user_url))
-
-
-class RecentCommentsViewTest(TestCase):
-    def setUp(self):
-        self.fp_user_id = "u1"
-        self.user_url = "https://factorioprints.com/user/u1"
-        self.ts = timezone.now()
-        UserSnapshot.objects.create(snapshot_ts=self.ts, user_url=self.user_url)
-        self.bp = Blueprint.objects.create(url="https://fp.com/bp/1", name="BP One")
-        BlueprintSnapshot.objects.create(
-            snapshot_ts=self.ts, blueprint=self.bp, name="BP One",
-            favourites=0, total_comments=1,
-        )
-        CommentSnapshot.objects.create(
-            snapshot_ts=self.ts, blueprint=self.bp, comment_id="c1",
-            author="alice", created_utc=self.ts, message_text="hi",
-        )
-
-    def test_renders_comments(self):
-        resp = self.client.get(reverse("recent_comments", args=[self.fp_user_id]))
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "BP One")
-        self.assertContains(resp, "alice")
-
-    def test_paginates_when_over_page_size(self):
-        # 1 comment in setUp + 60 more = 61 unique → 2 pages at 50/page
-        for i in range(60):
-            CommentSnapshot.objects.create(
-                snapshot_ts=self.ts, blueprint=self.bp, comment_id=f"x{i}",
-                author="a", created_utc=self.ts, message_text="m",
-            )
-        resp = self.client.get(reverse("recent_comments", args=[self.fp_user_id]))
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.context["page_obj"].paginator.count, 61)
-        self.assertEqual(resp.context["page_obj"].paginator.num_pages, 2)
-        self.assertEqual(len(resp.context["page_obj"].object_list), 50)
-        resp2 = self.client.get(reverse("recent_comments", args=[self.fp_user_id]) + "?page=2")
-        self.assertEqual(len(resp2.context["page_obj"].object_list), 11)
 
 
 class SnapshotRunModelTest(TestCase):

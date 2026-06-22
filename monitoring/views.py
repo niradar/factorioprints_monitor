@@ -10,8 +10,6 @@ from django.core.validators import validate_email
 from .models import UserSnapshot, BlueprintSnapshot, SnapshotRun, CommentStatus, Blueprint, UserSettings
 from .utils import (
     take_snapshot,
-    blueprints_with_new_comments,
-    get_recent_unique_comments,
     get_inbox_queryset,
     get_inbox_counts,
     user_blueprint_ids,
@@ -19,7 +17,7 @@ from .utils import (
     get_blueprint_comments,
     get_blueprint_series,
 )
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -28,8 +26,6 @@ from django.db.models import Max
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponseBadRequest, Http404
 from django.urls import reverse
 from django.views.decorators.http import require_POST
-import csv
-from io import StringIO
 from datetime import timedelta, datetime, timezone as dt_timezone
 from django.utils import timezone
 
@@ -127,65 +123,6 @@ def landing(request):
     return render(request, 'monitoring/landing.html', context)
 
 
-def home(request):
-    if request.method == "POST":
-        user_url = request.POST.get('user_url')
-        fp_user_id = extract_fp_user_id(user_url)
-        return redirect('user_dashboard', fp_user_id=fp_user_id)
-
-    # Get recent user_urls from UserSnapshot, ordered by latest snapshot
-    # Use distinct user_url, order by latest snapshot_ts
-    from django.db.models import Max
-    recent_users = (
-        UserSnapshot.objects.values('user_url')
-        .annotate(latest_ts=Max('snapshot_ts'))
-        .order_by('-latest_ts')[:5]
-    )
-    # Prepare for template: list of dicts with user_url, fp_user_id, latest_ts
-    recent_user_infos = [
-        {
-            'user_url': u['user_url'],
-            'fp_user_id': extract_fp_user_id(u['user_url']),
-            'latest_ts': u['latest_ts'],
-        }
-        for u in recent_users
-    ]
-    return render(request, 'monitoring/home.html', {'recent_user_infos': recent_user_infos})
-
-
-
-def user_dashboard(request, fp_user_id):
-    user_url = f"https://factorioprints.com/user/{fp_user_id}"
-    snapshots = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts')
-    # Button is disabled while a snapshot was taken within the cooldown window
-    snapshot_recent = is_in_cooldown(user_url)
-    # Most recent run (running/success/failed) drives the status banner
-    latest_run = SnapshotRun.objects.filter(user_url=user_url).first()
-    snapshot_running = is_snapshot_running(user_url)
-
-    # NEW: Get blueprints from latest snapshot
-    blueprint_snapshots = []
-    if snapshots:
-        latest_snapshot = snapshots[0]
-        blueprint_snapshots = BlueprintSnapshot.objects.filter(
-            snapshot_ts=latest_snapshot.snapshot_ts
-        ).order_by('name')
-
-    # Last 10 unique comments (the full list lives on the recent_comments page)
-    unique_comments = list(get_recent_unique_comments(user_url, limit=10))
-
-    return render(request, 'monitoring/user_dashboard.html', {
-        'fp_user_id': fp_user_id,
-        'snapshots': snapshots,
-        'user_url': user_url,
-        'snapshot_recent': snapshot_recent,
-        'latest_run': latest_run,
-        'snapshot_running': snapshot_running,
-        'blueprint_snapshots': blueprint_snapshots,
-        'recent_comments': unique_comments,  # Pass unique comments to template
-    })
-
-
 def take_snapshot_view(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
     # Run the scrape in a background thread (non-blocking); skip if busy / in cooldown.
@@ -204,7 +141,7 @@ def take_snapshot_view(request, fp_user_id):
 
     # No-JS fallback: flash a message and return to where we came from.
     messages.add_message(request, level, msg)
-    return HttpResponseRedirect(request.POST.get('next') or reverse('user_dashboard', args=[fp_user_id]))
+    return HttpResponseRedirect(request.POST.get('next') or reverse('inbox', args=[fp_user_id]))
 
 
 def snapshot_status(request, fp_user_id):
@@ -218,62 +155,6 @@ def snapshot_status(request, fp_user_id):
         'running': running,
         'started_at': latest_run.started_at.isoformat() if latest_run and running else None,
     })
-
-def parse_csv_table(csv_string):
-    """Parses CSV into list of dicts (header->value). Returns [] if error or no data."""
-    if not csv_string or csv_string.startswith("No "):
-        return []
-    f = StringIO(csv_string)
-    reader = csv.DictReader(f)
-    return list(reader)
-
-# ... in your comments_between view:
-def comments_between(request, fp_user_id):
-    user_url = f"https://factorioprints.com/user/{fp_user_id}"
-    start = request.GET.get('start_date')
-    end = request.GET.get('end_date')
-    csv_result, table_rows, error_msg = None, [], None
-    # If no end date, default to today
-    if not end:
-        from datetime import date
-        end = date.today().isoformat()
-    # Only call if both start and end are set
-    if start and end:
-        csv_result = blueprints_with_new_comments(user_url, start, end)
-        if csv_result.startswith("No snapshots") or csv_result.startswith("No blueprints"):
-            error_msg = csv_result
-        else:
-            table_rows = parse_csv_table(csv_result)
-    return render(request, 'monitoring/comments_between.html', {
-        'fp_user_id': fp_user_id,
-        'csv_result': csv_result,
-        'table_rows': table_rows,
-        'error_msg': error_msg,
-        'start': start,
-        'end': end,
-    })
-
-def user_snapshots(request, fp_user_id):
-    user_url = f"https://factorioprints.com/user/{fp_user_id}"
-    snapshots = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts')
-    return render(request, 'monitoring/user_snapshots.html', {
-        'fp_user_id': fp_user_id,
-        'snapshots': snapshots,
-    })
-
-# Page size for the full recent-comments list
-RECENT_COMMENTS_PAGE_SIZE = 50
-
-def recent_comments(request, fp_user_id):
-    user_url = f"https://factorioprints.com/user/{fp_user_id}"
-    comments = get_recent_unique_comments(user_url)
-    paginator = Paginator(comments, RECENT_COMMENTS_PAGE_SIZE)
-    page_obj = paginator.get_page(request.GET.get('page'))
-    return render(request, 'monitoring/recent_comments.html', {
-        'fp_user_id': fp_user_id,
-        'page_obj': page_obj,
-    })
-
 
 # ---------------------------------------------------------------------------
 # Inbox (new design-system pages)

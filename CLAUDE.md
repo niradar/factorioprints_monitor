@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Django web app that monitors user blueprints on factorioprints.com and tracks new comments. Uses Playwright for headless browser scraping and SQLite for storage. Snapshots triggered from the web UI run in a background thread; scheduled snapshots are driven externally (e.g. Windows Task Scheduler) via the `take_snapshot` management command.
 
-The primary web UI is a single-user, design-system app centered on a comment **inbox** (find new comments, reply on factorioprints, mark done), plus a blueprints list, per-blueprint trend charts, settings, an About page, and an onboarding landing screen. An older dashboard/template set (`home`, `user_dashboard`, `comments_between`, `user_snapshots`, `base.html`) still exists but is **legacy** — new work happens on the design-system shell described below.
+The web UI is a single-user, design-system app centered on a comment **inbox** (find new comments, reply on factorioprints, mark done), plus a blueprints list, per-blueprint trend charts, settings, an About page, and an onboarding landing screen — see the Frontend section below. (The original dashboard/`comments_between`/`base.html` pages have been removed.)
 
 ## Common Commands
 
@@ -101,11 +101,9 @@ Design-system app (current):
 - `/user/<fp_user_id>/snapshot/` — Trigger async snapshot (JSON for fetch, else redirect to `next`)
 - `/user/<fp_user_id>/snapshot/status/` — JSON snapshot status for the client-side poller
 
-Legacy (kept, not the primary UI): `/user/<fp_user_id>/` (dashboard), `/user/<fp_user_id>/comments/` (CSV between dates), `/user/<fp_user_id>/recent-comments/`, `/user/<fp_user_id>/snapshots/`.
-
 ### Frontend (design system)
 
-The design-system UI is an app shell, not the legacy `base.html`:
+The design-system UI is an app shell:
 - `templates/monitoring/app_base.html` — shared shell (sidebar nav, user switcher, top bar with search + snapshot button). New pages `{% extends %}` it and fill `{% block content %}`. The content heading lives *in* the content area, not the top bar.
 - `static/monitoring/css/app.css` — the whole design system (tokens for dark + light themes, all components). Single source of truth.
 - `static/monitoring/js/` — `app.js` (theme toggle + persistence, user switcher, Done-toggle fetch), `snapshot.js` (AJAX trigger + status poller), `table-pager.js` (client-side sort + pagination for the blueprints table), `chart.js` (dependency-free SVG trend chart; favourites by snapshot date, comments by real `created_utc`).
@@ -118,4 +116,4 @@ The dev email backend is the console backend (`settings.py`), so `send_test_emai
 
 ### Templates
 
-Templates are in `monitoring/templates/monitoring/`. The legacy pages use `base.html` (which provides `makeTableSortable()`); the current app uses `app_base.html` + the design system above.
+Templates are in `monitoring/templates/monitoring/`; all pages extend `app_base.html` (the design-system shell).
