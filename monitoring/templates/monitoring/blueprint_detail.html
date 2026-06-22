@@ -38,8 +38,8 @@
       </div>
     </div>
   </div>
-  {% if chart_series %}
-    {{ chart_series|json_script:"chart-data" }}
+  {% if chart_data.fav or chart_data.com %}
+    {{ chart_data|json_script:"chart-data" }}
     <div id="favchart"></div>
     <div class="chartnote" id="chart-note"></div>
   {% else %}

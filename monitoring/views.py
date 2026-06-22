@@ -485,11 +485,19 @@ def blueprint_detail(request, fp_user_id, blueprint_id):
         if baseline:
             fav_delta = favourites - baseline['favourites']
 
-    # ms timestamps for the client-side chart; json_script handles escaping
-    chart_series = [
-        {'t': int(p['snapshot_ts'].timestamp() * 1000), 'fav': p['favourites'], 'com': p['total_comments']}
+    # Chart data (ms timestamps; json_script handles escaping). Favourites has no
+    # real history — only what each snapshot saw — so it's plotted per snapshot.
+    # Comments DO have a real post date, so they're plotted cumulatively by when
+    # each was posted; this is correct even from a single snapshot.
+    fav_series = [
+        {'t': int(p['snapshot_ts'].timestamp() * 1000), 'v': p['favourites']}
         for p in series
     ]
+    com_series = [
+        {'t': int(c.created_utc.timestamp() * 1000), 'v': i + 1}
+        for i, c in enumerate(sorted(comments, key=lambda c: c.created_utc))
+    ]
+    chart_data = {'fav': fav_series, 'com': com_series}
 
     counts = get_inbox_counts(user_url)
     shell = shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs'])
@@ -502,7 +510,7 @@ def blueprint_detail(request, fp_user_id, blueprint_id):
         'fav_delta': fav_delta,
         'awaiting': awaiting,
         'comments': comments,
-        'chart_series': chart_series,
+        'chart_data': chart_data,
     }
     context.update(shell)
     return render(request, 'monitoring/blueprint_detail.html', context)

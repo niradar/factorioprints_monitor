@@ -32,8 +32,9 @@
   }
 
   function render() {
-    var key = state.metric;
-    var data = SERIES.map(function (p) { return { t: p.t, v: p[key] }; });
+    // favourites = snapshot points; comments = real post dates (cumulative)
+    var data = (SERIES[state.metric] || []).slice();
+    var snapshotBased = state.metric === 'fav';
     if (state.range !== 'all' && data.length) {
       var cutoff = data[data.length - 1].t - parseInt(state.range, 10) * 86400000;
       data = data.filter(function (p) { return p.t >= cutoff; });
@@ -70,7 +71,8 @@
     for (var i = 1; i < data.length; i++) dts.push(data[i].t - data[i - 1].t);
     var med = median(dts), hasGap = false;
     for (var j = 1; j < pts.length; j++) {
-      var gap = med > 0 && (data[j].t - data[j - 1].t) > med * 2;
+      // only snapshot gaps are "missing data"; comment intervals are real
+      var gap = snapshotBased && med > 0 && (data[j].t - data[j - 1].t) > med * 2;
       if (gap) hasGap = true;
       svg.push('<path class="line' + (gap ? ' gap' : '') + '" d="M' + pts[j - 1].x.toFixed(1) + ',' + pts[j - 1].y.toFixed(1) +
                ' L' + pts[j].x.toFixed(1) + ',' + pts[j].y.toFixed(1) + '"/>');
@@ -98,9 +100,13 @@
     svg.push('</svg>');
     host.innerHTML = svg.join('');
     if (note) {
-      note.innerHTML = hasGap
-        ? 'Each point is a snapshot. <b>Dashed</b> = a stretch with no snapshots (slope interpolated).'
-        : 'Each point is a snapshot.';
+      if (!snapshotBased) {
+        note.textContent = 'Each point is a comment, plotted when it was posted.';
+      } else {
+        note.innerHTML = hasGap
+          ? 'Each point is a snapshot. <b>Dashed</b> = a stretch with no snapshots (slope interpolated).'
+          : 'Each point is a snapshot.';
+      }
     }
   }
 
