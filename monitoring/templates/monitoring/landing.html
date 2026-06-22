@@ -1,0 +1,27 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Factorioprints Monitor</title>
+  <script>(function(){try{var t=localStorage.getItem('fpm-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="{% static 'monitoring/css/app.css' %}">
+</head>
+<body class="landing-body">
+  <div class="landing-card">
+    <div class="landing-brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
+      <div><div class="name">FP&nbsp;Monitor</div><div class="tag">comment watch</div></div>
+    </div>
+    <h1>Monitor your blueprints</h1>
+    <p class="landing-sub">Track new comments on the blueprints you publish on factorioprints.com, and reply before they pile up.</p>
+    <form method="post" class="landing-form">
+      {% csrf_token %}
+      <input class="input" name="user_url" style="max-width:none" placeholder="Paste your factorioprints user URL…" autofocus>
+      <button class="btn-primary" type="submit">Go&nbsp;→</button>
+    </form>
+    {% if error %}<div class="landing-error">{{ error }}</div>{% endif %}
+    {% if last_user %}<a class="landing-back" href="{% url 'inbox' last_user %}">← Back to {{ last_user_name }}</a>{% endif %}
+  </div>
+</body>
+</html>

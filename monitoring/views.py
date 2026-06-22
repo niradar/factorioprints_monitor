@@ -98,6 +98,35 @@ def extract_fp_user_id(user_url):
     # You may want better validation here
     return user_url.rstrip('/').split('/')[-1]
 
+
+def landing(request):
+    """Entry point (`/`). New install (no users) → onboarding form; otherwise
+    → the most recently active user's inbox. `?add=1` forces the form so you can
+    add another user even when one already exists."""
+    if request.method == 'POST':
+        user_url = request.POST.get('user_url', '').strip()
+        if user_url:
+            return redirect('inbox', fp_user_id=extract_fp_user_id(user_url))
+        error = "Paste your factorioprints user URL."
+    else:
+        error = None
+        if 'add' not in request.GET:
+            last = UserSnapshot.objects.order_by('-snapshot_ts').first()
+            if last:
+                return redirect('inbox', fp_user_id=extract_fp_user_id(last.user_url))
+
+    last = UserSnapshot.objects.order_by('-snapshot_ts').first()
+    context = {'error': error}
+    if last:
+        last_settings = UserSettings.objects.filter(user_url=last.user_url).first()
+        context['last_user'] = extract_fp_user_id(last.user_url)
+        context['last_user_name'] = (
+            last_settings.display_name if last_settings and last_settings.display_name
+            else extract_fp_user_id(last.user_url)
+        )
+    return render(request, 'monitoring/landing.html', context)
+
+
 def home(request):
     if request.method == "POST":
         user_url = request.POST.get('user_url')
