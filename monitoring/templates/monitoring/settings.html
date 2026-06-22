@@ -1,5 +1,5 @@
 {% extends "monitoring/app_base.html" %}
-{% block title %}Settings — {{ display_name }}{% endblock %}
+{% block title %}Settings - {{ display_name }}{% endblock %}
 
 {% block content %}
 <div style="max-width:760px">
@@ -14,7 +14,7 @@
     {% csrf_token %}
     <div class="section">
       <div class="frow">
-        <div class="lab"><div class="t">User URL</div><div class="d">Identifies this user — switch user to monitor a different one.</div></div>
+        <div class="lab"><div class="t">User URL</div><div class="d">Identifies this user - switch user to monitor a different one.</div></div>
         <div class="ctl" style="gap:8px">
           <input class="input mono" style="max-width:none;font-size:12px" value="{{ user_url }}" readonly>
           <a class="btn-ghost" href="{{ user_url }}" target="_blank" rel="noopener">Open ↗</a>
@@ -54,7 +54,7 @@
 
   <details class="autoscan">
     <summary>Set up automatic daily snapshots (Windows) →</summary>
-    <div class="shint" style="margin:10px 0 8px">Run once in a terminal to scan daily at 08:00, even when the app is closed — it writes straight to the database.</div>
+    <div class="shint" style="margin:10px 0 8px">Run once in a terminal to scan daily at 08:00, even when the app is closed - it writes straight to the database.</div>
     <div class="codeblock">
       <div class="codebar"><span class="lbl">Command Prompt</span><button class="copybtn" type="button" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button></div>
       <pre class="code">schtasks /Create /SC DAILY /ST 08:00 /TN "FactorioPrintsSnapshot" ^

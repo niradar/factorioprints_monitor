@@ -1,5 +1,5 @@
 /* ============================================================================
-   Factorioprints Monitor — design system (single source of truth).
+   Factorioprints Monitor - design system (single source of truth).
    See .interface-design/system.md. Dark = Factorio panel; light = paper.
    Orange (--accent) ONLY ever means "needs you". Green (--good) = done.
    ========================================================================== */
@@ -262,7 +262,7 @@ td.last { color: var(--text-3); font-size: 12.5px; white-space: nowrap; text-ali
          color: var(--text-1); font: inherit; font-size: 13.5px; width: 100%; min-width: 0; max-width: 380px; }
 .input::placeholder { color: var(--text-3); }
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-/* read-only fields: muted, no focus ring — clearly not editable */
+/* read-only fields: muted, no focus ring - clearly not editable */
 .input[readonly] { background: var(--canvas); border-style: dashed; color: var(--text-3); cursor: default; }
 .input[readonly]:focus { border-color: var(--border-soft); box-shadow: none; }
 .off { opacity: .4; pointer-events: none; }

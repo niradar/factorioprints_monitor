@@ -1,4 +1,4 @@
-/* App-shell behaviour. All progressive enhancement — the page works without it. */
+/* App-shell behaviour. All progressive enhancement - the page works without it. */
 (function () {
   'use strict';
 
@@ -65,7 +65,7 @@
         btn.setAttribute('aria-pressed', String(on));
         btn.querySelector('.lab').textContent = on ? 'Done' : 'Mark done';
         row.classList.toggle('is-done', on);
-        // In a filtered view the row no longer belongs — fade it out.
+        // In a filtered view the row no longer belongs - fade it out.
         if (status && status !== 'all') {
           row.style.transition = 'opacity .2s ease';
           row.style.opacity = '0';

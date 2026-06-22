@@ -19,7 +19,7 @@ def new_comments_in_snapshot(user_url, snapshot_ts):
     """CommentSnapshots first seen at `snapshot_ts` (vs the previous snapshot),
     excluding the user's own comments, oldest first.
 
-    Empty on the first-ever snapshot — that one is just a baseline, so we don't
+    Empty on the first-ever snapshot - that one is just a baseline, so we don't
     alert on the whole comment history.
     """
     prev = (
@@ -74,7 +74,7 @@ def _build_email(settings_obj, user_url, fresh):
 
 def send_new_comment_alert(user_url, snapshot_ts):
     """Email the configured address about comments new in this snapshot, if alerts
-    are enabled and there are any. Best-effort — logs and swallows all errors."""
+    are enabled and there are any. Best-effort - logs and swallows all errors."""
     try:
         settings_obj = UserSettings.objects.filter(user_url=user_url).first()
         if not settings_obj or not settings_obj.alerts_enabled or not settings_obj.alert_email:

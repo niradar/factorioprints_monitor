@@ -79,7 +79,7 @@ def _run_snapshot(user_url, run_id):
             snapshot_ts=snapshot_ts,
         )
     finally:
-        # Close this thread's DB connection — it isn't managed by the request cycle.
+        # Close this thread's DB connection - it isn't managed by the request cycle.
         connection.close()
 
 
@@ -127,9 +127,9 @@ def take_snapshot_view(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
     # Run the scrape in a background thread (non-blocking); skip if busy / in cooldown.
     if is_snapshot_running(user_url):
-        started, level, msg = False, messages.WARNING, "A snapshot is already running — please wait for it to finish."
+        started, level, msg = False, messages.WARNING, "A snapshot is already running - please wait for it to finish."
     elif is_in_cooldown(user_url):
-        started, level, msg = False, messages.WARNING, "Snapshot skipped — one was already taken within the last 10 minutes."
+        started, level, msg = False, messages.WARNING, "Snapshot skipped - one was already taken within the last 10 minutes."
     else:
         run = SnapshotRun.objects.create(user_url=user_url, status=SnapshotRun.RUNNING)
         start_snapshot_async(user_url, run.id)
@@ -292,7 +292,7 @@ def toggle_handled(request, fp_user_id, blueprint_id, comment_id):
 @require_POST
 def mark_all_done(request, fp_user_id):
     """Mark every awaiting-reply comment for this user as done (ignores the
-    current filter/search — always the full outstanding set)."""
+    current filter/search - always the full outstanding set)."""
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
     now = timezone.now()
     pairs = list(get_inbox_queryset(user_url, status='needs').values_list('blueprint_id', 'comment_id'))
@@ -332,7 +332,7 @@ def blueprints_list(request, fp_user_id):
     rows = get_blueprints_overview(user_url)
 
     # Server sort gives the initial order (and a no-JS fallback). The page renders
-    # every blueprint, so the browser re-sorts instantly on header click — no
+    # every blueprint, so the browser re-sorts instantly on header click - no
     # round-trip, no pagination needed at this scale.
     sort = request.GET.get('sort', 'last')
     if sort not in BLUEPRINT_SORTS:
@@ -371,7 +371,7 @@ def blueprint_detail(request, fp_user_id, blueprint_id):
             fav_delta = favourites - baseline['favourites']
 
     # Chart data (ms timestamps; json_script handles escaping). Favourites has no
-    # real history — only what each snapshot saw — so it's plotted per snapshot.
+    # real history - only what each snapshot saw - so it's plotted per snapshot.
     # Comments DO have a real post date, so they're plotted cumulatively by when
     # each was posted; this is correct even from a single snapshot.
     fav_series = [
@@ -433,12 +433,12 @@ def settings_page(request, fp_user_id):
             messages.error(request, error)
         else:
             # Test saves first (so the email you're testing is the one kept) and
-            # then sends — which is why unsaved fields no longer get cleared.
+            # then sends - which is why unsaved fields no longer get cleared.
             obj.save()
             if action == 'test':
                 try:
                     send_mail(
-                        subject="FP Monitor — test alert",
+                        subject="FP Monitor - test alert",
                         message=f"This is a test alert for {fp_user_id}. If you got this, email alerts are wired up.",
                         from_email=None,  # uses DEFAULT_FROM_EMAIL
                         recipient_list=[obj.alert_email],

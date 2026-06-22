@@ -1,6 +1,6 @@
 {% extends "monitoring/app_base.html" %}
 {% load static %}
-{% block title %}{{ bp.name }} — {{ display_name }}{% endblock %}
+{% block title %}{{ bp.name }} - {{ display_name }}{% endblock %}
 {% block extra_js %}<script src="{% static 'monitoring/js/chart.js' %}"></script>{% endblock %}
 
 {% block content %}
@@ -43,7 +43,7 @@
     <div id="favchart"></div>
     <div class="chartnote" id="chart-note"></div>
   {% else %}
-    <div class="chart-empty">No snapshots yet — take a snapshot to start charting.</div>
+    <div class="chart-empty">No snapshots yet - take a snapshot to start charting.</div>
   {% endif %}
 </div>
 

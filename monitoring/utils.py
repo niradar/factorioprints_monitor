@@ -120,7 +120,7 @@ def get_recent_unique_comments(user_url, limit=None):
 
 def _handled_subquery():
     """Exists() subquery: is the outer CommentSnapshot's comment marked handled?
-    Correlated on (blueprint, comment_id) — the stable comment identity."""
+    Correlated on (blueprint, comment_id) - the stable comment identity."""
     from django.db.models import OuterRef
     from .models import CommentStatus
 
@@ -177,7 +177,7 @@ def get_blueprint_comments(blueprint_id):
 
 
 def get_blueprint_series(blueprint_id):
-    """Per-snapshot (ts, favourites, total_comments) for one blueprint — chart data."""
+    """Per-snapshot (ts, favourites, total_comments) for one blueprint - chart data."""
     return list(
         BlueprintSnapshot.objects.filter(blueprint_id=blueprint_id)
         .order_by('snapshot_ts')

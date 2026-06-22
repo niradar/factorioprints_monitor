@@ -48,7 +48,7 @@
           window.location.reload();  // bring in the new data + final state
         }
       })
-      .catch(function () { /* transient error — keep polling */ });
+      .catch(function () { /* transient error - keep polling */ });
   }
 
   function start() {

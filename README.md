@@ -1,21 +1,21 @@
 # Factorioprints.com Monitor
 
-Track new comments on the blueprints you publish on [factorioprints.com](https://factorioprints.com) — see what still needs a reply at a glance, watch favourites and comments grow over time, and (optionally) get emailed when new comments arrive.
+Track new comments on the blueprints you publish on [factorioprints.com](https://factorioprints.com) - see what still needs a reply at a glance, watch favourites and comments grow over time, and (optionally) get emailed when new comments arrive.
 
 A single-user Django web app that scrapes factorioprints with a headless browser (Playwright) and stores point-in-time **snapshots** in SQLite.
 
 ## Features
 
-- **Comment inbox** — every new comment across your blueprints in one list. Filter **All / Needs reply / Done**, search, and mark a comment *done* as you reply on factorioprints. Your own replies show as “(you)”.
-- **Blueprints** — a sortable list (favourites + 30‑day change, comments, awaiting replies, last comment) and a per‑blueprint page with a favourites/comments **trend chart** (comments plotted by their real post date).
-- **Snapshots** — take one from the app with **live progress** (no page reload), or on a schedule via Windows Task Scheduler.
-- **Email alerts** — optionally get emailed when a snapshot finds new comments (your own replies excluded).
-- **Settings** — a display name, your Disqus name (powers “(you)” / reply detection), and email‑alert config.
+- **Comment inbox** - every new comment across your blueprints in one list. Filter **All / Needs reply / Done**, search, and mark a comment *done* as you reply on factorioprints. Your own replies show as “(you)”.
+- **Blueprints** - a sortable list (favourites + 30‑day change, comments, awaiting replies, last comment) and a per‑blueprint page with a favourites/comments **trend chart** (comments plotted by their real post date).
+- **Snapshots** - take one from the app with **live progress** (no page reload), or on a schedule via Windows Task Scheduler.
+- **Email alerts** - optionally get emailed when a snapshot finds new comments (your own replies excluded).
+- **Settings** - a display name, your Disqus name (powers “(you)” / reply detection), and email‑alert config.
 - Dark / light themes; multiple monitored users with a switcher.
 
 ## 1. Prerequisites
 
-[uv](https://github.com/astral-sh/uv) — a Python package/venv manager.
+[uv](https://github.com/astral-sh/uv) - a Python package/venv manager.
 
 ## 2. Installation
 
@@ -36,7 +36,7 @@ python manage.py runserver 0.0.0.0:8129     # manual (set DJANGO_SETTINGS_MODULE
 ```
 
 Open <http://localhost:8129/>. On first run, paste your factorioprints **user URL**
-(`https://factorioprints.com/user/<USER_ID>`) — that drops you into the inbox, where
+(`https://factorioprints.com/user/<USER_ID>`) - that drops you into the inbox, where
 **Take snapshot** scrapes your blueprints and comments. After that, the inbox fills in
 and you can reply, mark done, browse blueprint trends, and tune Settings.
 
@@ -46,7 +46,7 @@ Enable **Email alerts** in Settings and enter an address. After each snapshot, a
 comments (vs the previous snapshot, excluding your own replies) are emailed to you.
 
 In development, mail prints to the **server console**. For real delivery, set SMTP env
-vars before launching — e.g. Gmail with a 16‑char **App Password** (requires 2‑Step
+vars before launching - e.g. Gmail with a 16‑char **App Password** (requires 2‑Step
 Verification). Set them as user env vars so both the server and the scheduled task see them:
 
 ```bat
@@ -61,8 +61,8 @@ Open a new terminal after `setx`, then use **Test** in Settings to verify.
 
 ## 5. Scheduled snapshots (Windows Task Scheduler)
 
-`run_snapshot.bat "<user_url>"` takes one snapshot via the management command — no web
-server required (it writes straight to SQLite) — and triggers email alerts if enabled.
+`run_snapshot.bat "<user_url>"` takes one snapshot via the management command - no web
+server required (it writes straight to SQLite) - and triggers email alerts if enabled.
 Register it to run on a schedule:
 
 Replace `<install-dir>` with the folder where you cloned the project:

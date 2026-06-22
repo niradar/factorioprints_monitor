@@ -440,7 +440,7 @@ class TakeSnapshotTest(TestCase):
 
         # Should not create a duplicate Blueprint
         self.assertEqual(Blueprint.objects.count(), 1)
-        # get_or_create doesn't update name — original name is kept
+        # get_or_create doesn't update name - original name is kept
         self.assertEqual(Blueprint.objects.first().name, "Old Name")
 
     @patch("monitoring.utils._fetch_all_comments_concurrent")
@@ -543,7 +543,7 @@ class BlueprintsWithNewCommentsTest(TestCase):
             author="a3", created_utc=self.ts1, message_text="m3"
         )
 
-        # Snapshot on June 5 — bp1 gains 1 comment, bp2 gains 2
+        # Snapshot on June 5 - bp1 gains 1 comment, bp2 gains 2
         self.ts2 = datetime(2025, 6, 5, 10, 0, 0, tzinfo=dt_timezone.utc)
         UserSnapshot.objects.create(snapshot_ts=self.ts2, user_url=self.user_url)
         BlueprintSnapshot.objects.create(
@@ -602,7 +602,7 @@ class BlueprintsWithNewCommentsTest(TestCase):
         self.assertEqual(rows["https://fp.com/bp/2"]["blueprint_name"], "BP2, with comma")
 
     def test_no_new_comments(self):
-        """Same date for start and end — 0 new comments."""
+        """Same date for start and end - 0 new comments."""
         from monitoring.utils import blueprints_with_new_comments
         result = blueprints_with_new_comments(self.user_url, "2025-06-01", "2025-06-01")
         self.assertEqual(result, "No blueprints received new comments in this period.")
@@ -719,7 +719,7 @@ class IsInCooldownTest(TestCase):
 
 
 class StartSnapshotAsyncTest(TransactionTestCase):
-    """Real-thread tests — use TransactionTestCase so the worker thread's
+    """Real-thread tests - use TransactionTestCase so the worker thread's
     separate DB connection can see/commit rows (a TestCase transaction would
     hide the run row from the thread)."""
 
@@ -760,7 +760,7 @@ class StartSnapshotAsyncTest(TransactionTestCase):
 
     @patch("monitoring.views.take_snapshot", side_effect=RuntimeError("boom"))
     def test_failure_marks_run_failed_and_logs(self, mock_take):
-        """A failing snapshot must not crash silently — it's logged and recorded."""
+        """A failing snapshot must not crash silently - it's logged and recorded."""
         from monitoring.views import start_snapshot_async
         run = self._make_run()
         with self.assertLogs("monitoring.views", level="ERROR") as cm:

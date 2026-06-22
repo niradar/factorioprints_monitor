@@ -77,7 +77,7 @@ class CommentSnapshot(models.Model):
 class CommentStatus(models.Model):
     """Per-comment 'handled' state for the inbox.
 
-    Handled-ness belongs to a *comment identity* — (blueprint, comment_id) —
+    Handled-ness belongs to a *comment identity* - (blueprint, comment_id) -
     not to any single snapshot. The same comment is re-captured in every
     CommentSnapshot, so storing the flag on a snapshot row would make a handled
     comment reappear as unhandled after the next scrape. This small side table

@@ -1,6 +1,6 @@
 {% extends "monitoring/app_base.html" %}
 {% load static inbox_extras %}
-{% block title %}Blueprints — {{ display_name }}{% endblock %}
+{% block title %}Blueprints - {{ display_name }}{% endblock %}
 {% block extra_js %}<script src="{% static 'monitoring/js/table-pager.js' %}"></script>{% endblock %}
 
 {% block content %}
@@ -29,8 +29,8 @@
           <td><span class="bpname">{{ r.name }}</span></td>
           <td class="num" data-sort="{{ r.favourites }}">{{ r.favourites }}{% if r.fav_delta is not None %}<span class="delta{% if not r.fav_delta %} flat{% endif %}" title="change vs ~30 days ago">{% if r.fav_delta >= 0 %}+{% endif %}{{ r.fav_delta }}</span>{% endif %}</td>
           <td class="num col-comments" data-sort="{{ r.comments }}">{{ r.comments }}</td>
-          <td class="num" data-sort="{{ r.awaiting }}">{% if r.awaiting %}<span class="await">{{ r.awaiting }}</span>{% else %}<span class="await none">—</span>{% endif %}</td>
-          <td class="last col-last" data-sort="{{ r.last_comment_ts|date:'U'|default:'0' }}">{% if r.last_comment_ts %}<span title="{{ r.last_comment_ts|date:'Y-m-d H:i' }} UTC">{{ r.last_comment_ts|smart_time }}</span>{% else %}—{% endif %}</td>
+          <td class="num" data-sort="{{ r.awaiting }}">{% if r.awaiting %}<span class="await">{{ r.awaiting }}</span>{% else %}<span class="await none">-</span>{% endif %}</td>
+          <td class="last col-last" data-sort="{{ r.last_comment_ts|date:'U'|default:'0' }}">{% if r.last_comment_ts %}<span title="{{ r.last_comment_ts|date:'Y-m-d H:i' }} UTC">{{ r.last_comment_ts|smart_time }}</span>{% else %}-{% endif %}</td>
         </tr>
       {% endfor %}
     </tbody>
@@ -38,6 +38,6 @@
 </div>
 <div id="bp-pager"></div>
 {% else %}
-<div class="tablewrap"><div class="empty">No blueprints yet — take a snapshot to start.</div></div>
+<div class="tablewrap"><div class="empty">No blueprints yet - take a snapshot to start.</div></div>
 {% endif %}
 {% endblock %}

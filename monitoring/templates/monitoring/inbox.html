@@ -1,5 +1,5 @@
 {% extends "monitoring/app_base.html" %}
-{% block title %}Inbox — {{ display_name }}{% endblock %}
+{% block title %}Inbox - {{ display_name }}{% endblock %}
 
 {% block content %}
 {# filter/pagination links share these params; only the changing one is overridden #}
@@ -40,7 +40,7 @@
       {% elif status == 'needs' %}Nothing awaiting a reply. 🎉
       {% elif status == 'done' %}Nothing marked done yet.
       {% else %}
-        {% if last_snapshot_ts %}No comments captured yet.{% else %}No snapshots yet — take your first one to start.{% endif %}
+        {% if last_snapshot_ts %}No comments captured yet.{% else %}No snapshots yet - take your first one to start.{% endif %}
         <div style="margin-top:14px">
           <button class="btn-primary js-snap-trigger" type="button"
                   {% if snapshot_running or snapshot_recent %}disabled{% endif %}

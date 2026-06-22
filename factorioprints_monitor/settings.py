@@ -143,7 +143,7 @@ else:
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Logging — surface snapshot progress and failures on the console (incl. the
+# Logging - surface snapshot progress and failures on the console (incl. the
 # background thread started from the web UI), so a run's status is visible.
 LOGGING = {
     'version': 1,

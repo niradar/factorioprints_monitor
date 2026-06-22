@@ -16,7 +16,7 @@ instead, since the blueprint is implied.
       {% endif %}
       <span class="time" title="{{ comment.created_utc|date:'Y-m-d H:i' }} UTC">{{ comment.created_utc|smart_time }}</span>
     </div>
-    <div class="said">{% if not hide_blueprint %}<span class="who">{{ comment.display_author|default:comment.author }}</span>{% if comment.is_mine %} <span class="you-tag">(you)</span>{% endif %} — {% endif %}{{ comment.message_text }}</div>
+    <div class="said">{% if not hide_blueprint %}<span class="who">{{ comment.display_author|default:comment.author }}</span>{% if comment.is_mine %} <span class="you-tag">(you)</span>{% endif %} - {% endif %}{{ comment.message_text }}</div>
   </div>
   <div class="act">
     <a class="ibtn reply" href="{{ comment.blueprint.url }}" target="_blank" rel="noopener">Reply ↗</a>

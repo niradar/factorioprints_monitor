@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Settings mockup — Factorioprints Monitor</title>
+<title>Settings mockup - Factorioprints Monitor</title>
 <style>
   :root[data-theme="dark"] {
     --canvas:    #26241f; --panel: #34312b; --panel-2: #3d3a33; --slot: #1d1b17;
@@ -47,7 +47,7 @@
                   border-radius: 20px; min-width: 19px; height: 19px; padding: 0 6px; display: grid; place-items: center; }
   .side .spacer { flex: 1; }
   .userbox { position: relative; border-top: 1px solid var(--border); padding-top: 12px; display: flex; align-items: center; gap: 8px; }
-  /* the user box IS the switcher — a real button + popover */
+  /* the user box IS the switcher - a real button + popover */
   .usermenu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; text-align: left;
               background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 5px 7px; margin: -5px -7px; color: inherit; font: inherit; }
   .usermenu:hover, .userbox.open .usermenu { background: var(--panel-2); border-color: var(--border); }
@@ -262,7 +262,7 @@
 
         <div class="section">
           <div class="frow">
-            <div class="lab"><div class="t">User URL</div><div class="d">Identifies this user — switch user to monitor a different one.</div></div>
+            <div class="lab"><div class="t">User URL</div><div class="d">Identifies this user - switch user to monitor a different one.</div></div>
             <div class="ctl" style="gap:8px">
               <input class="input mono" style="max-width:none;font-size:12px" value="https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52" readonly>
               <a class="btn-ghost" href="https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52" target="_blank" style="align-self:auto">Open ↗</a>
@@ -289,7 +289,7 @@
         <!-- reference, not settings: compact, collapsed by default -->
         <details class="autoscan">
           <summary>Set up automatic daily snapshots (Windows) →</summary>
-          <div class="shint" style="margin:10px 0 8px">Run once in a terminal to scan daily at 08:00, even when the app is closed — it writes straight to the database.</div>
+          <div class="shint" style="margin:10px 0 8px">Run once in a terminal to scan daily at 08:00, even when the app is closed - it writes straight to the database.</div>
           <div class="codeblock">
             <div class="codebar"><span class="lbl">Command Prompt</span><button class="copybtn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button></div>
             <pre class="code">schtasks /Create /SC DAILY /ST 08:00 /TN "FactorioPrintsSnapshot" ^
