@@ -40,9 +40,9 @@ class SnapshotRunAdmin(admin.ModelAdmin):
 
 @admin.register(UserSettings)
 class UserSettingsAdmin(admin.ModelAdmin):
-    list_display = ('user_url', 'disqus_name', 'alerts_enabled', 'alert_email')
+    list_display = ('user_url', 'display_name', 'disqus_name', 'alerts_enabled', 'alert_email')
     list_filter = ('alerts_enabled',)
-    search_fields = ('user_url', 'disqus_name', 'alert_email')
+    search_fields = ('user_url', 'display_name', 'disqus_name', 'alert_email')
 
 @admin.register(CommentStatus)
 class CommentStatusAdmin(admin.ModelAdmin):

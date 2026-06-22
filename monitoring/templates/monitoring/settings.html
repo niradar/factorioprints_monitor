@@ -21,7 +21,11 @@
         </div>
       </div>
       <div class="frow">
-        <div class="lab"><div class="t">Disqus name</div><div class="d">The name you reply under, so the inbox can recognise your own replies.</div></div>
+        <div class="lab"><div class="t">Display name</div><div class="d">Shown across the app instead of the user id, and on your own comments. Leave blank to show the id.</div></div>
+        <div class="ctl"><input class="input" name="display_name" value="{{ settings_obj.display_name }}" placeholder="e.g. Nilaus"></div>
+      </div>
+      <div class="frow">
+        <div class="lab"><div class="t">Disqus name</div><div class="d">The name you post replies under on factorioprints. Used to recognise your own comments (shown as “{{ settings_obj.display_name|default:'your display name' }} (you)”).</div></div>
         <div class="ctl"><input class="input" name="disqus_name" value="{{ settings_obj.disqus_name }}" placeholder="e.g. Nilaus"></div>
       </div>
       <div class="frow">

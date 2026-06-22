@@ -261,6 +261,13 @@ def shell_context(fp_user_id, user_url, active, awaiting_count=None):
     is passed in by callers that already computed inbox counts, to avoid running
     that query twice.
     """
+    settings_obj = UserSettings.objects.filter(user_url=user_url).first()
+    # the friendly name the user chose (falls back to the raw id if unset)
+    owner_display = settings_obj.display_name if settings_obj else ''
+    display_name = owner_display or fp_user_id
+    # their Disqus name, lowercased, used to spot their own comments → "(you)"
+    owner_disqus = (settings_obj.disqus_name.strip().lower() if settings_obj and settings_obj.disqus_name else '')
+
     last_snapshot = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts').first()
     latest_run = SnapshotRun.objects.filter(user_url=user_url).first()
     blueprint_count = (
@@ -268,14 +275,20 @@ def shell_context(fp_user_id, user_url, active, awaiting_count=None):
         if last_snapshot else 0
     )
     monitored_users = [
-        {'fp_user_id': (uid := extract_fp_user_id(row['user_url'])), 'name': uid, 'is_current': uid == fp_user_id}
+        {
+            'fp_user_id': (uid := extract_fp_user_id(row['user_url'])),
+            'name': display_name if uid == fp_user_id else uid,
+            'is_current': uid == fp_user_id,
+        }
         for row in UserSnapshot.objects.values('user_url').annotate(latest=Max('snapshot_ts')).order_by('-latest')
     ]
     return {
         'active_nav': active,
         'fp_user_id': fp_user_id,
         'user_url': user_url,
-        'display_name': fp_user_id,  # TODO: capture the real Disqus/display name when scraping
+        'display_name': display_name,
+        'owner_display': owner_display,
+        'owner_disqus': owner_disqus,
         'last_snapshot_ts': last_snapshot.snapshot_ts if last_snapshot else None,
         'latest_run': latest_run,
         'snapshot_running': is_snapshot_running(user_url),
@@ -283,6 +296,15 @@ def shell_context(fp_user_id, user_url, active, awaiting_count=None):
         'monitored_users': monitored_users,
         'awaiting_count': awaiting_count,
     }
+
+
+def _mark_ownership(comments, owner_disqus, owner_display):
+    """Tag each comment: is it the owner's, and what name to show. The owner's
+    own Disqus name is masked behind their chosen display name (privacy)."""
+    for c in comments:
+        c.is_mine = bool(owner_disqus and (c.author or '').strip().lower() == owner_disqus)
+        c.display_author = owner_display if (c.is_mine and owner_display) else c.author
+    return comments
 
 
 def inbox(request, fp_user_id):
@@ -305,6 +327,9 @@ def inbox(request, fp_user_id):
         pager_hidden['q'] = query
     qs = urlencode({**pager_hidden, 'per_page': per_page})
 
+    shell = shell_context(fp_user_id, user_url, active='inbox', awaiting_count=counts['needs'])
+    page_obj.object_list = _mark_ownership(list(page_obj.object_list), shell['owner_disqus'], shell['owner_display'])
+
     context = {
         'page_obj': page_obj,
         'page_range': paginator.get_elided_page_range(page_obj.number, on_each_side=1, on_ends=1),
@@ -316,7 +341,7 @@ def inbox(request, fp_user_id):
         'per_page': per_page,
         'per_page_options': PER_PAGE_OPTIONS,
     }
-    context.update(shell_context(fp_user_id, user_url, active='inbox', awaiting_count=counts['needs']))
+    context.update(shell)
     return render(request, 'monitoring/inbox.html', context)
 
 
@@ -427,6 +452,9 @@ def blueprint_detail(request, fp_user_id, blueprint_id):
     ]
 
     counts = get_inbox_counts(user_url)
+    shell = shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs'])
+    _mark_ownership(comments, shell['owner_disqus'], shell['owner_display'])
+
     context = {
         'bp': bp,
         'favourites': favourites,
@@ -436,7 +464,7 @@ def blueprint_detail(request, fp_user_id, blueprint_id):
         'comments': comments,
         'chart_series': chart_series,
     }
-    context.update(shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs']))
+    context.update(shell)
     return render(request, 'monitoring/blueprint_detail.html', context)
 
 
@@ -449,6 +477,7 @@ def settings_page(request, fp_user_id):
     obj, _ = UserSettings.objects.get_or_create(user_url=user_url)
 
     if request.method == 'POST':
+        obj.display_name = request.POST.get('display_name', '').strip()
         obj.disqus_name = request.POST.get('disqus_name', '').strip()
         obj.alerts_enabled = request.POST.get('alerts_enabled') == 'on'
         obj.alert_email = request.POST.get('alert_email', '').strip()
@@ -477,6 +506,14 @@ def settings_page(request, fp_user_id):
     }
     context.update(shell_context(fp_user_id, user_url, active='settings', awaiting_count=counts['needs']))
     return render(request, 'monitoring/settings.html', context)
+
+
+def about(request, fp_user_id):
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    counts = get_inbox_counts(user_url)
+    context = {'repo_url': 'https://github.com/niradar/factorioprints_monitor'}
+    context.update(shell_context(fp_user_id, user_url, active='about', awaiting_count=counts['needs']))
+    return render(request, 'monitoring/about.html', context)
 
 
 @require_POST

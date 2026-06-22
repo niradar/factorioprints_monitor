@@ -105,7 +105,8 @@ class UserSettings(models.Model):
       the separate "email alerts" feature; this just stores the config).
     """
     user_url = models.URLField(unique=True)
-    disqus_name = models.CharField(max_length=100, blank=True, default='')
+    display_name = models.CharField(max_length=100, blank=True, default='')  # friendly name shown across the app
+    disqus_name = models.CharField(max_length=100, blank=True, default='')   # matches your own comments (for "(you)")
     alerts_enabled = models.BooleanField(default=False)
     alert_email = models.EmailField(blank=True, default='')
 
