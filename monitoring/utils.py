@@ -155,6 +155,88 @@ def get_inbox_counts(user_url):
     return {'all': total, 'needs': total - done, 'done': done}
 
 
+def get_blueprint_comments(blueprint_id):
+    """Latest unique comments for ONE blueprint, annotated `is_handled`, newest first."""
+    from django.db.models import Max, Exists
+
+    latest = (
+        CommentSnapshot.objects.filter(blueprint_id=blueprint_id)
+        .values('comment_id').annotate(latest_id=Max('id')).values_list('latest_id', flat=True)
+    )
+    return (
+        CommentSnapshot.objects.filter(id__in=latest)
+        .select_related('blueprint')
+        .annotate(is_handled=Exists(_handled_subquery()))
+        .order_by('-created_utc')
+    )
+
+
+def get_blueprint_series(blueprint_id):
+    """Per-snapshot (ts, favourites, total_comments) for one blueprint — chart data."""
+    return list(
+        BlueprintSnapshot.objects.filter(blueprint_id=blueprint_id)
+        .order_by('snapshot_ts')
+        .values('snapshot_ts', 'favourites', 'total_comments')
+    )
+
+
+def get_blueprints_overview(user_url, baseline_days=30):
+    """Per-blueprint rows for the Blueprints list, from the user's latest snapshot.
+
+    Each row: blueprint_id, name, url, favourites, fav_delta (vs ~baseline_days
+    ago, or None), comments (Disqus total), awaiting (unhandled captured), and
+    last_comment_ts. Returns [] if the user has no snapshots.
+    """
+    from datetime import timedelta
+    from django.db.models import Exists
+
+    latest = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts').first()
+    if not latest:
+        return []
+    latest_ts = latest.snapshot_ts
+
+    current = BlueprintSnapshot.objects.filter(snapshot_ts=latest_ts).select_related('blueprint')
+
+    # baseline favourites ~baseline_days ago (nearest user snapshot at/before then)
+    baseline_user = (
+        UserSnapshot.objects
+        .filter(user_url=user_url, snapshot_ts__lte=latest_ts - timedelta(days=baseline_days))
+        .order_by('-snapshot_ts').first()
+    )
+    baseline_fav = {}
+    if baseline_user:
+        baseline_fav = dict(
+            BlueprintSnapshot.objects.filter(snapshot_ts=baseline_user.snapshot_ts)
+            .values_list('blueprint_id', 'favourites')
+        )
+
+    # comment aggregates per blueprint, from the latest-unique comments (one query)
+    agg = {}
+    comments = get_recent_unique_comments(user_url).annotate(is_handled=Exists(_handled_subquery()))
+    for c in comments.values('blueprint_id', 'is_handled', 'created_utc'):
+        a = agg.setdefault(c['blueprint_id'], {'awaiting': 0, 'last_ts': None})
+        if not c['is_handled']:
+            a['awaiting'] += 1
+        if a['last_ts'] is None or c['created_utc'] > a['last_ts']:
+            a['last_ts'] = c['created_utc']
+
+    rows = []
+    for bs in current:
+        a = agg.get(bs.blueprint_id, {'awaiting': 0, 'last_ts': None})
+        base = baseline_fav.get(bs.blueprint_id)
+        rows.append({
+            'blueprint_id': bs.blueprint_id,
+            'name': bs.name,
+            'url': bs.blueprint.url,
+            'favourites': bs.favourites,
+            'fav_delta': (bs.favourites - base) if base is not None else None,
+            'comments': bs.total_comments,
+            'awaiting': a['awaiting'],
+            'last_comment_ts': a['last_ts'],
+        })
+    return rows
+
+
 def list_snapshots(user_url=None):
     """Return all snapshot timestamps (optionally filtered by user_url)"""
     qs = UserSnapshot.objects.all()

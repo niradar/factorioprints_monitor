@@ -1,0 +1,29 @@
+{# Shared pagination footer. Expects: page_obj, page_range, qs (base querystring
+   without page), pager_hidden (dict of fields the per-page form must keep),
+   per_page, per_page_options. #}
+{% if page_obj.paginator.count %}
+<div class="pager">
+  <span class="left">
+    <span class="mono">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+    <form class="perpage" method="get">
+      {% for k, v in pager_hidden.items %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+      Per page
+      <span class="ppsel">
+        <select name="per_page" onchange="this.form.submit()">
+          {% for opt in per_page_options %}<option value="{{ opt }}" {% if opt == per_page %}selected{% endif %}>{{ opt }}</option>{% endfor %}
+        </select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+    </form>
+  </span>
+  <span class="pages mono">
+    {% if page_obj.has_previous %}<a href="?{{ qs }}&page={{ page_obj.previous_page_number }}">‹</a>{% else %}<a class="dis">‹</a>{% endif %}
+    {% for n in page_range %}
+      {% if n == page_obj.number %}<a class="cur">{{ n }}</a>
+      {% elif n == page_obj.paginator.ELLIPSIS %}<a class="dis">{{ n }}</a>
+      {% else %}<a href="?{{ qs }}&page={{ n }}">{{ n }}</a>{% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}<a href="?{{ qs }}&page={{ page_obj.next_page_number }}">›</a>{% else %}<a class="dis">›</a>{% endif %}
+  </span>
+</div>
+{% endif %}

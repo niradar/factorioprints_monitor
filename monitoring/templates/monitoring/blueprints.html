@@ -1,0 +1,43 @@
+{% extends "monitoring/app_base.html" %}
+{% load inbox_extras %}
+{% block title %}Blueprints — {{ display_name }}{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h2>Blueprints</h2>
+    <div class="sub mono">{{ total }} blueprint{{ total|pluralize }}{% if awaiting_count %} · <a class="q" href="{% url 'inbox' fp_user_id %}?status=needs">{{ awaiting_count }} awaiting reply →</a>{% endif %}</div>
+  </div>
+</div>
+
+{% if page_obj.paginator.count %}
+<div class="tablewrap">
+  <table class="bp">
+    <thead>
+      <tr>
+        <th><a href="?sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}&per_page={{ per_page }}">Blueprint{% if sort == 'name' %} <span class="arr">{% if dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+        <th class="num"><a href="?sort=favourites&dir={% if sort == 'favourites' and dir == 'asc' %}desc{% else %}asc{% endif %}&per_page={{ per_page }}">Favourites{% if sort == 'favourites' %} <span class="arr">{% if dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+        <th class="num col-comments"><a href="?sort=comments&dir={% if sort == 'comments' and dir == 'asc' %}desc{% else %}asc{% endif %}&per_page={{ per_page }}">Comments{% if sort == 'comments' %} <span class="arr">{% if dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+        <th class="num"><a href="?sort=awaiting&dir={% if sort == 'awaiting' and dir == 'asc' %}desc{% else %}asc{% endif %}&per_page={{ per_page }}">Awaiting{% if sort == 'awaiting' %} <span class="arr">{% if dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+        <th class="num col-last"><a href="?sort=last&dir={% if sort == 'last' and dir == 'asc' %}desc{% else %}asc{% endif %}&per_page={{ per_page }}">Last comment{% if sort == 'last' %} <span class="arr">{% if dir == 'asc' %}▲{% else %}▼{% endif %}</span>{% endif %}</a></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in page_obj %}
+        <tr data-href="{% url 'blueprint_detail' fp_user_id r.blueprint_id %}">
+          <td><span class="bpname">{{ r.name }}</span></td>
+          <td class="num">{{ r.favourites }}{% if r.fav_delta is not None %}<span class="delta{% if not r.fav_delta %} flat{% endif %}">{% if r.fav_delta >= 0 %}+{% endif %}{{ r.fav_delta }}</span>{% endif %}</td>
+          <td class="num col-comments">{{ r.comments }}</td>
+          <td class="num">{% if r.awaiting %}<span class="await">{{ r.awaiting }}</span>{% else %}<span class="await none">—</span>{% endif %}</td>
+          <td class="last col-last">{% if r.last_comment_ts %}<span title="{{ r.last_comment_ts|date:'Y-m-d H:i' }} UTC">{{ r.last_comment_ts|smart_time }}</span>{% else %}—{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include "monitoring/_pager.html" %}
+{% else %}
+<div class="tablewrap"><div class="empty">No blueprints yet — take a snapshot to start.</div></div>
+{% endif %}
+{% endblock %}

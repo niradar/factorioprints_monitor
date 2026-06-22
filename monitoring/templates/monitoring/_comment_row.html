@@ -1,13 +1,20 @@
 {% load inbox_extras %}
+{# One comment row. On the inbox the blueprint name is the anchor (links to
+   detail); on a blueprint page pass hide_blueprint=True to anchor on the author
+   instead, since the blueprint is implied. #}
 <div class="crow{% if comment.is_handled %} is-done{% endif %}">
   <div class="av">{{ comment.author|first }}</div>
   <div class="col">
     <div class="toprow">
       {% if not comment.is_handled %}<span class="needdot"></span>{% endif %}
-      <a class="bp" href="{{ comment.blueprint.url }}" target="_blank" rel="noopener">{{ comment.blueprint.name }} <span class="ext">↗</span></a>
+      {% if hide_blueprint %}
+        <span class="bp">{{ comment.author }}</span>
+      {% else %}
+        <a class="bp" href="{% url 'blueprint_detail' fp_user_id comment.blueprint_id %}">{{ comment.blueprint.name }}</a>
+      {% endif %}
       <span class="time" title="{{ comment.created_utc|date:'Y-m-d H:i' }} UTC">{{ comment.created_utc|smart_time }}</span>
     </div>
-    <div class="said"><span class="who">{{ comment.author }}</span> — {{ comment.message_text }}</div>
+    <div class="said">{% if not hide_blueprint %}<span class="who">{{ comment.author }}</span> — {% endif %}{{ comment.message_text }}</div>
   </div>
   <div class="act">
     <a class="ibtn reply" href="{{ comment.blueprint.url }}" target="_blank" rel="noopener">Reply ↗</a>

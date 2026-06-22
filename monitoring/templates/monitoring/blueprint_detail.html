@@ -1,0 +1,62 @@
+{% extends "monitoring/app_base.html" %}
+{% load static %}
+{% block title %}{{ bp.name }} — {{ display_name }}{% endblock %}
+{% block extra_js %}<script src="{% static 'monitoring/js/chart.js' %}"></script>{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+  <a href="{% url 'blueprints' fp_user_id %}">Blueprints</a><span class="sep">›</span><span class="here">{{ bp.name }}</span>
+</div>
+
+<div class="bphead">
+  <div>
+    <h2>{{ bp.name }}</h2>
+    <a class="ext" href="{{ bp.url }}" target="_blank" rel="noopener">View on Factorioprints ↗</a>
+  </div>
+  <div class="stats">
+    <div class="statcard">
+      <div class="n">{{ favourites }}{% if fav_delta is not None %}<span class="d{% if not fav_delta %} flat{% endif %}">{% if fav_delta >= 0 %}+{% endif %}{{ fav_delta }}</span>{% endif %}</div>
+      <div class="k">Favourites{% if fav_delta is not None %} · 30d{% endif %}</div>
+    </div>
+    <div class="statcard"><div class="n">{{ comments_total }}</div><div class="k">Comments</div></div>
+    <div class="statcard"><div class="n accent">{{ awaiting }}</div><div class="k">Awaiting reply</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="cardhead">
+    <h3>Trend over time</h3>
+    <div class="tools">
+      <div class="seg" id="metric-seg">
+        <button data-metric="fav" aria-pressed="true">Favourites</button>
+        <button data-metric="com" aria-pressed="false">Comments</button>
+      </div>
+      <div class="seg" id="range-seg">
+        <button data-range="30" aria-pressed="false">30d</button>
+        <button data-range="90" aria-pressed="false">90d</button>
+        <button data-range="all" aria-pressed="true">All</button>
+      </div>
+    </div>
+  </div>
+  {% if chart_series %}
+    {{ chart_series|json_script:"chart-data" }}
+    <div id="favchart"></div>
+    <div class="chartnote" id="chart-note"></div>
+  {% else %}
+    <div class="chart-empty">No snapshots yet — take a snapshot to start charting.</div>
+  {% endif %}
+</div>
+
+<div class="listhead">
+  <h3>Comments</h3>
+  <span class="mono" style="color:var(--text-3)">{{ comments|length }}</span>
+  {% if awaiting %}<span class="q">· {{ awaiting }} awaiting reply</span>{% endif %}
+</div>
+{% if comments %}
+<div class="listwrap" data-status="all">
+  {% for comment in comments %}{% include "monitoring/_comment_row.html" with hide_blueprint=True %}{% endfor %}
+</div>
+{% else %}
+<div class="listwrap"><div class="empty">No comments captured for this blueprint yet.</div></div>
+{% endif %}
+{% endblock %}

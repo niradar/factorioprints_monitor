@@ -21,6 +21,14 @@
     });
   });
 
+  // --- whole-row navigation for tables (e.g. Blueprints list)
+  document.addEventListener('click', function (e) {
+    var row = e.target.closest('tr[data-href]');
+    if (row && !e.target.closest('a, button, form, input, select')) {
+      window.location.href = row.dataset.href;
+    }
+  });
+
   // --- Done toggle: upgrade the plain form POST to an in-place fetch
   document.addEventListener('submit', function (e) {
     var form = e.target.closest('.done-form');

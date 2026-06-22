@@ -2,8 +2,8 @@
 import logging
 import threading
 
-from django.shortcuts import render, redirect
-from .models import UserSnapshot, BlueprintSnapshot, SnapshotRun, CommentStatus
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import UserSnapshot, BlueprintSnapshot, SnapshotRun, CommentStatus, Blueprint
 from .utils import (
     take_snapshot,
     blueprints_with_new_comments,
@@ -11,19 +11,22 @@ from .utils import (
     get_inbox_queryset,
     get_inbox_counts,
     user_blueprint_ids,
+    get_blueprints_overview,
+    get_blueprint_comments,
+    get_blueprint_series,
 )
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import connection, transaction
 from django.db.models import Max
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponseBadRequest
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponseBadRequest, Http404
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 import csv
 from io import StringIO
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone as dt_timezone
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -234,8 +237,17 @@ def recent_comments(request, fp_user_id):
 # ---------------------------------------------------------------------------
 
 INBOX_FILTERS = ('all', 'needs', 'done')
-INBOX_PER_PAGE_OPTIONS = (10, 25, 50)
-INBOX_DEFAULT_PER_PAGE = 10
+PER_PAGE_OPTIONS = (10, 25, 50)
+DEFAULT_PER_PAGE = 10
+
+
+def _per_page(request):
+    """Validated page size from ?per_page, falling back to the default."""
+    try:
+        value = int(request.GET.get('per_page', DEFAULT_PER_PAGE))
+    except (TypeError, ValueError):
+        return DEFAULT_PER_PAGE
+    return value if value in PER_PAGE_OPTIONS else DEFAULT_PER_PAGE
 
 
 def shell_context(fp_user_id, user_url, active, awaiting_count=None):
@@ -276,27 +288,29 @@ def inbox(request, fp_user_id):
     if status not in INBOX_FILTERS:
         status = 'all'
     query = request.GET.get('q', '').strip()
-    try:
-        per_page = int(request.GET.get('per_page', INBOX_DEFAULT_PER_PAGE))
-    except (TypeError, ValueError):
-        per_page = INBOX_DEFAULT_PER_PAGE
-    if per_page not in INBOX_PER_PAGE_OPTIONS:
-        per_page = INBOX_DEFAULT_PER_PAGE
+    per_page = _per_page(request)
 
     comments = get_inbox_queryset(user_url, status=status, query=query)
     paginator = Paginator(comments, per_page)
     page_obj = paginator.get_page(request.GET.get('page'))
     counts = get_inbox_counts(user_url)
 
+    # pager links keep status/q/per_page; the per-page form keeps status/q (page resets)
+    pager_hidden = {'status': status}
+    if query:
+        pager_hidden['q'] = query
+    qs = urlencode({**pager_hidden, 'per_page': per_page})
+
     context = {
         'page_obj': page_obj,
-        # windowed page list (1 … 4 5 6 … 20) instead of every page number
         'page_range': paginator.get_elided_page_range(page_obj.number, on_each_side=1, on_ends=1),
+        'qs': qs,
+        'pager_hidden': pager_hidden,
         'counts': counts,
         'status': status,
         'query': query,
         'per_page': per_page,
-        'per_page_options': INBOX_PER_PAGE_OPTIONS,
+        'per_page_options': PER_PAGE_OPTIONS,
     }
     context.update(shell_context(fp_user_id, user_url, active='inbox', awaiting_count=counts['needs']))
     return render(request, 'monitoring/inbox.html', context)
@@ -341,3 +355,91 @@ def mark_all_done(request, fp_user_id):
         plural = '' if len(pairs) == 1 else 's'
         messages.success(request, f"Marked {len(pairs)} comment{plural} as done.")
     return redirect(request.POST.get('next') or reverse('inbox', args=[fp_user_id]))
+
+
+# ---------------------------------------------------------------------------
+# Blueprints list + detail
+# ---------------------------------------------------------------------------
+
+# sort key -> how to read it off an overview row. Built so a missing/None value
+# sorts low (blueprints with no comments sink under "last comment, newest first").
+_MIN_DT = datetime.min.replace(tzinfo=dt_timezone.utc)
+BLUEPRINT_SORTS = {
+    'name': lambda r: (r['name'] or '').lower(),
+    'favourites': lambda r: r['favourites'] or 0,
+    'comments': lambda r: r['comments'] or 0,
+    'awaiting': lambda r: r['awaiting'] or 0,
+    'last': lambda r: r['last_comment_ts'] or _MIN_DT,
+}
+
+
+def blueprints_list(request, fp_user_id):
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    rows = get_blueprints_overview(user_url)
+
+    sort = request.GET.get('sort', 'last')
+    if sort not in BLUEPRINT_SORTS:
+        sort = 'last'
+    direction = 'asc' if request.GET.get('dir') == 'asc' else 'desc'
+    rows.sort(key=BLUEPRINT_SORTS[sort], reverse=(direction == 'desc'))
+
+    per_page = _per_page(request)
+    paginator = Paginator(rows, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    counts = get_inbox_counts(user_url)
+
+    pager_hidden = {'sort': sort, 'dir': direction}
+    qs = urlencode({**pager_hidden, 'per_page': per_page})
+
+    context = {
+        'page_obj': page_obj,
+        'page_range': paginator.get_elided_page_range(page_obj.number, on_each_side=1, on_ends=1),
+        'qs': qs,
+        'pager_hidden': pager_hidden,
+        'total': len(rows),
+        'sort': sort,
+        'dir': direction,
+        'per_page': per_page,
+        'per_page_options': PER_PAGE_OPTIONS,
+    }
+    context.update(shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs']))
+    return render(request, 'monitoring/blueprints.html', context)
+
+
+def blueprint_detail(request, fp_user_id, blueprint_id):
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    if blueprint_id not in set(user_blueprint_ids(user_url)):
+        raise Http404("Blueprint is not monitored for this user.")
+    bp = get_object_or_404(Blueprint, id=blueprint_id)
+
+    series = get_blueprint_series(blueprint_id)
+    comments = list(get_blueprint_comments(blueprint_id))
+    awaiting = sum(1 for c in comments if not c.is_handled)
+
+    favourites = series[-1]['favourites'] if series else 0
+    comments_total = series[-1]['total_comments'] if series else 0
+    fav_delta = None
+    if series:
+        cutoff = series[-1]['snapshot_ts'] - timedelta(days=30)
+        baseline = next((p for p in reversed(series) if p['snapshot_ts'] <= cutoff), None)
+        if baseline:
+            fav_delta = favourites - baseline['favourites']
+
+    # ms timestamps for the client-side chart; json_script handles escaping
+    chart_series = [
+        {'t': int(p['snapshot_ts'].timestamp() * 1000), 'fav': p['favourites'], 'com': p['total_comments']}
+        for p in series
+    ]
+
+    counts = get_inbox_counts(user_url)
+    context = {
+        'bp': bp,
+        'favourites': favourites,
+        'comments_total': comments_total,
+        'fav_delta': fav_delta,
+        'awaiting': awaiting,
+        'comments': comments,
+        'chart_series': chart_series,
+    }
+    context.update(shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs']))
+    return render(request, 'monitoring/blueprint_detail.html', context)
