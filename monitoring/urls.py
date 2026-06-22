@@ -11,6 +11,7 @@ urlpatterns = [
     path('user/<str:fp_user_id>/snapshots/', views.user_snapshots, name='user_snapshots'),
     # New design-system inbox (does not replace the dashboard yet)
     path('user/<str:fp_user_id>/inbox/', views.inbox, name='inbox'),
+    path('user/<str:fp_user_id>/inbox/mark-all-done/', views.mark_all_done, name='mark_all_done'),
     path(
         'user/<str:fp_user_id>/comment/<int:blueprint_id>/<str:comment_id>/toggle/',
         views.toggle_handled,

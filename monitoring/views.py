@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Max
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponseBadRequest
 from django.urls import reverse
@@ -318,4 +318,26 @@ def toggle_handled(request, fp_user_id, blueprint_id, comment_id):
 
     if request.headers.get('X-Requested-With') == 'fetch':
         return JsonResponse({'handled': status_obj.handled})
+    return redirect(request.POST.get('next') or reverse('inbox', args=[fp_user_id]))
+
+
+@require_POST
+def mark_all_done(request, fp_user_id):
+    """Mark every awaiting-reply comment for this user as done (ignores the
+    current filter/search — always the full outstanding set)."""
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    now = timezone.now()
+    pairs = list(get_inbox_queryset(user_url, status='needs').values_list('blueprint_id', 'comment_id'))
+    # Personal-scale data set, so a per-comment upsert is fine and clearer than
+    # a hand-rolled bulk merge over (blueprint, comment_id) tuples.
+    with transaction.atomic():
+        for blueprint_id, comment_id in pairs:
+            CommentStatus.objects.update_or_create(
+                blueprint_id=blueprint_id,
+                comment_id=comment_id,
+                defaults={'handled': True, 'handled_at': now},
+            )
+    if pairs:
+        plural = '' if len(pairs) == 1 else 's'
+        messages.success(request, f"Marked {len(pairs)} comment{plural} as done.")
     return redirect(request.POST.get('next') or reverse('inbox', args=[fp_user_id]))

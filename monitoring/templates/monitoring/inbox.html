@@ -10,6 +10,17 @@
     <div class="sub mono">{{ counts.all }} comment{{ counts.all|pluralize }} · <span class="q">{{ counts.needs }} awaiting reply</span></div>
   </div>
   <div class="toolbar">
+    {% if counts.needs %}
+    <form method="post" action="{% url 'mark_all_done' fp_user_id %}"
+          onsubmit="return confirm('Mark all {{ counts.needs }} awaiting comment{{ counts.needs|pluralize }} as done?')">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="ibtn" type="submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+        Mark all done
+      </button>
+    </form>
+    {% endif %}
     <div class="filters">
       <a class="{% if status == 'all' %}on{% endif %}"   href="?status=all&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}">All</a>
       <a class="{% if status == 'needs' %}on{% endif %}" href="?status=needs&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}">Needs reply</a>
