@@ -118,10 +118,25 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# Email — dev default prints to the console (no SMTP needed). Real delivery is
-# configured with the email-alerts feature.
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'FP Monitor <fpmonitor@localhost>'
+# Email. Defaults to the console backend (prints to the server log). Set the
+# FPM_EMAIL_HOST env var to send real mail (e.g. Gmail SMTP with an app password):
+#   FPM_EMAIL_HOST=smtp.gmail.com FPM_EMAIL_USER=you@gmail.com FPM_EMAIL_PASSWORD=...
+import os
+
+# Base URL used in alert email links (the inbox link).
+ALERT_BASE_URL = os.environ.get('FPM_BASE_URL', 'http://localhost:8129')
+
+if os.environ.get('FPM_EMAIL_HOST'):
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.environ['FPM_EMAIL_HOST']
+    EMAIL_PORT = int(os.environ.get('FPM_EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.environ.get('FPM_EMAIL_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('FPM_EMAIL_PASSWORD', '')
+    EMAIL_USE_TLS = os.environ.get('FPM_EMAIL_TLS', '1') == '1'
+    DEFAULT_FROM_EMAIL = os.environ.get('FPM_EMAIL_FROM', EMAIL_HOST_USER or 'fpmonitor@localhost')
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    DEFAULT_FROM_EMAIL = 'FP Monitor <fpmonitor@localhost>'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -77,6 +77,11 @@ def take_snapshot(user_url: str) -> datetime:
                 )
             logger.info(f"Created {len(c_info.get('comments', []))} CommentSnapshots for blueprint {bp['url']} at {snapshot_ts}")
     logger.info(f"Snapshot complete for user: {user_url} at {snapshot_ts}")
+
+    # Best-effort: email the user about comments new in this snapshot (no-op if
+    # alerts are off or this is the first snapshot). Never breaks the snapshot.
+    from .alerts import send_new_comment_alert
+    send_new_comment_alert(user_url, snapshot_ts)
     return snapshot_ts
 
 

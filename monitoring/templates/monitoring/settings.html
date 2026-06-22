@@ -38,7 +38,7 @@
           <input class="input email cond{% if not settings_obj.alerts_enabled %} off{% endif %}" name="alert_email" type="email"
                  value="{{ settings_obj.alert_email }}" placeholder="you@example.com" style="max-width:260px">
           <button class="btn-ghost cond{% if not settings_obj.alerts_enabled %} off{% endif %}" type="submit"
-                  formaction="{% url 'send_test_email' fp_user_id %}" formnovalidate>
+                  name="action" value="test" formnovalidate>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>Test
           </button>
         </div>
@@ -46,7 +46,7 @@
     </div>
 
     <div class="saver" style="margin-bottom:26px">
-      <button class="btn-primary" type="submit">
+      <button class="btn-primary" type="submit" name="action" value="save">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="width:14px;height:14px"><path d="M20 6 9 17l-5-5"/></svg>Save
       </button>
     </div>
