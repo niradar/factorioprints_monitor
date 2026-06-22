@@ -161,24 +161,34 @@ def take_snapshot_view(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
     # Run the scrape in a background thread (non-blocking); skip if busy / in cooldown.
     if is_snapshot_running(user_url):
-        messages.warning(
-            request,
-            "A snapshot is already running — please wait for it to finish.",
-        )
+        started, level, msg = False, messages.WARNING, "A snapshot is already running — please wait for it to finish."
     elif is_in_cooldown(user_url):
-        messages.warning(
-            request,
-            "Snapshot skipped — one was already taken within the last 10 minutes.",
-        )
+        started, level, msg = False, messages.WARNING, "Snapshot skipped — one was already taken within the last 10 minutes."
     else:
         run = SnapshotRun.objects.create(user_url=user_url, status=SnapshotRun.RUNNING)
         start_snapshot_async(user_url, run.id)
-        messages.info(
-            request,
-            "Snapshot started in the background. It can take a few minutes — "
-            "this page refreshes automatically while it runs.",
-        )
-    return HttpResponseRedirect(reverse('user_dashboard', args=[fp_user_id]))
+        started, level, msg = True, messages.INFO, "Snapshot started in the background. It can take a few minutes."
+
+    # AJAX path (new shell): the poller takes over; no navigation.
+    if request.headers.get('X-Requested-With') == 'fetch':
+        return JsonResponse({'started': started, 'running': is_snapshot_running(user_url), 'message': msg})
+
+    # No-JS fallback: flash a message and return to where we came from.
+    messages.add_message(request, level, msg)
+    return HttpResponseRedirect(request.POST.get('next') or reverse('user_dashboard', args=[fp_user_id]))
+
+
+def snapshot_status(request, fp_user_id):
+    """Lightweight JSON for the client-side poller: is a snapshot running, and
+    since when. When it stops, the client reloads and the server re-renders the
+    final state (last scan / failure / cooldown)."""
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    latest_run = SnapshotRun.objects.filter(user_url=user_url).first()
+    running = is_snapshot_running(user_url)
+    return JsonResponse({
+        'running': running,
+        'started_at': latest_run.started_at.isoformat() if latest_run and running else None,
+    })
 
 def parse_csv_table(csv_string):
     """Parses CSV into list of dicts (header->value). Returns [] if error or no data."""
@@ -292,6 +302,7 @@ def shell_context(fp_user_id, user_url, active, awaiting_count=None):
         'last_snapshot_ts': last_snapshot.snapshot_ts if last_snapshot else None,
         'latest_run': latest_run,
         'snapshot_running': is_snapshot_running(user_url),
+        'snapshot_recent': is_in_cooldown(user_url),
         'blueprint_count': blueprint_count,
         'monitored_users': monitored_users,
         'awaiting_count': awaiting_count,

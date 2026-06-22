@@ -73,13 +73,23 @@
         <input name="q" value="{{ request.GET.q }}" placeholder="Search comments, authors, blueprints…">
       </form>
       <div class="right">
-        <div class="scanmeta">
-          {% if last_snapshot_ts %}last scan <b>{{ last_snapshot_ts|timesince }} ago</b>{% else %}<b>no snapshots yet</b>{% endif %}
-          <br>{% if snapshot_running %}⏳ scanning…{% else %}✓ {{ blueprint_count }} blueprints{% endif %}
+        <div class="scanmeta" id="scanmeta" data-running="{% if snapshot_running %}1{% else %}0{% endif %}"{% if snapshot_running and latest_run %} data-started="{{ latest_run.started_at.isoformat }}"{% endif %}>
+          {% if snapshot_running %}
+            ⏳ <b>scanning…</b><br><span id="scan-elapsed"></span>
+          {% elif latest_run and latest_run.status == 'failed' %}
+            ✗ <b>last scan failed</b><br><span title="{{ latest_run.error }}">{{ latest_run.error|truncatechars:42|default:'see logs' }}</span>
+          {% elif last_snapshot_ts %}
+            last scan <b>{{ last_snapshot_ts|timesince }} ago</b><br>✓ {{ blueprint_count }} blueprints
+          {% else %}
+            <b>no snapshots yet</b>
+          {% endif %}
         </div>
-        <form method="post" action="{% url 'take_snapshot' fp_user_id %}">
+        <form id="snap-form" method="post" action="{% url 'take_snapshot' fp_user_id %}" data-status-url="{% url 'snapshot_status' fp_user_id %}">
           {% csrf_token %}
-          <button class="snapbtn" {% if snapshot_running %}disabled{% endif %}>
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="snapbtn" id="snap-btn"
+                  {% if snapshot_running or snapshot_recent %}disabled{% endif %}
+                  {% if snapshot_recent and not snapshot_running %}title="Recently scanned — try again in a few minutes"{% endif %}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>
             Take snapshot
           </button>
@@ -94,6 +104,7 @@
   </div>
 
   <script src="{% static 'monitoring/js/app.js' %}"></script>
+  <script src="{% static 'monitoring/js/snapshot.js' %}"></script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>
