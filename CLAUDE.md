@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Django web app that monitors user blueprints on factorioprints.com and tracks new comments. Uses Playwright for headless browser scraping and SQLite for storage. Snapshots triggered from the web UI run in a background thread; scheduled snapshots are driven externally (e.g. Windows Task Scheduler) via the `take_snapshot` management command.
 
+The primary web UI is a single-user, design-system app centered on a comment **inbox** (find new comments, reply on factorioprints, mark done), plus a blueprints list, per-blueprint trend charts, settings, an About page, and an onboarding landing screen. An older dashboard/template set (`home`, `user_dashboard`, `comments_between`, `user_snapshots`, `base.html`) still exists but is **legacy** — new work happens on the design-system shell described below.
+
 ## Common Commands
 
 ```bash
@@ -63,6 +65,11 @@ All data is captured as point-in-time snapshots to track changes over time:
 - **CommentSnapshot** — Individual comment captured at snapshot time. Unique on `(snapshot_ts, blueprint, comment_id)`.
 - **SnapshotRun** — Lifecycle of a single snapshot attempt: `status` (running/success/failed), `started_at`, `finished_at`, `snapshot_ts` (set on success), `error`. Makes a still-running or failed run observable in the UI/admin.
 
+Two models hold mutable, **non-snapshot** state (one row per identity, not per scrape):
+
+- **CommentStatus** — The inbox "handled" flag, keyed on `(blueprint, comment_id)` — the stable comment identity, *not* a snapshot row, so it survives re-scrapes. Fields: `handled`, `handled_at`. A row exists only once a comment is toggled; absence means not handled. Queried via an `Exists()` annotation in `utils.get_inbox_queryset()`.
+- **UserSettings** — Per-user preferences, one row per `user_url`: `display_name` (shown across the app, and substituted for the user's own comment author as "Name (you)"), `disqus_name` (matches the user's own comments), `alerts_enabled` / `alert_email` (email-alert config; sending is not built yet).
+
 ### Scraping Pipeline
 
 1. `blueprints_scraper.py` — Playwright sync API. Scrolls the user's page to lazy-load all blueprint cards, extracts name/url/favorites.
@@ -72,20 +79,43 @@ All data is captured as point-in-time snapshots to track changes over time:
 ### Async Task Flow
 
 The web UI triggers snapshots in a background thread:
-1. User clicks "Take New Snapshot" → `views.take_snapshot_view()` checks `is_snapshot_running()` and `is_in_cooldown()`; if clear it creates a `SnapshotRun` (status=running) and calls `start_snapshot_async(user_url, run.id)`
+1. The top-bar "Take snapshot" button (and the empty-inbox CTA) submits the form. `views.take_snapshot_view()` checks `is_snapshot_running()` and `is_in_cooldown()`; if clear it creates a `SnapshotRun` (status=running) and calls `start_snapshot_async(user_url, run.id)`
 2. `start_snapshot_async` runs `take_snapshot()` (from `utils.py`) in a daemon thread (`_run_snapshot`) so the request returns immediately; on completion it sets the `SnapshotRun` to success (+`snapshot_ts`) or failed (+`error`), and logs failures
-3. A 1-hour cooldown (`SNAPSHOT_COOLDOWN` in `views.py`) is enforced server-side; `is_snapshot_running` also blocks overlapping runs (RUNNING rows older than the cooldown are treated as stale). The dashboard shows a status banner and auto-refreshes every 10s while a run is in progress
-4. Only the web path records `SnapshotRun` rows; the `take_snapshot` management command (used by Task Scheduler) just runs the scrape directly
+3. **Server-side protection:** a 10-minute cooldown (`SNAPSHOT_COOLDOWN` in `views.py`, based on the last successful `UserSnapshot`) and an overlap block via `is_snapshot_running`. A `RUNNING` row older than `SNAPSHOT_STALE_AFTER` (30 min) is treated as stale so a crashed run can't block forever.
+4. **Client-side (design-system shell):** `take_snapshot_view` returns JSON when called via `fetch` (header `X-Requested-With: fetch`); `static/monitoring/js/snapshot.js` then polls `snapshot_status` every ~3s, shows live "scanning…" + elapsed time with no navigation, and reloads once when the run finishes. Without JS, the form falls back to a normal POST that redirects to `next` (the current page). `shell_context()` exposes `snapshot_running` / `snapshot_recent` so the button disables on running **or** cooldown.
+5. Only the web path records `SnapshotRun` rows; the `take_snapshot` management command (used by Task Scheduler) just runs the scrape directly.
 
 ### URL Routes
 
-All routes are under `monitoring/urls.py`:
-- `/` — Home page with user URL input
-- `/user/<fp_user_id>/` — User dashboard (blueprints table, recent comments)
-- `/user/<fp_user_id>/snapshot/` — Trigger async snapshot
-- `/user/<fp_user_id>/comments/` — CSV of blueprints with new comments between dates
-- `/user/<fp_user_id>/snapshots/` — All snapshots for a user
+All routes are under `monitoring/urls.py`.
+
+Design-system app (current):
+- `/` — Landing/onboarding (`views.landing`). No users → URL-input form; otherwise redirects to the most recent user's inbox. `?add=1` forces the form (used by the switcher's "Add user").
+- `/user/<fp_user_id>/inbox/` — Inbox: latest comments with All/Needs-reply/Done filter, search, pagination, per-comment Done toggle
+- `/user/<fp_user_id>/comment/<blueprint_id>/<comment_id>/toggle/` — Toggle a comment's handled state (JSON for fetch, redirect for no-JS)
+- `/user/<fp_user_id>/inbox/mark-all-done/` — Mark all awaiting comments done
+- `/user/<fp_user_id>/blueprints/` — Sortable blueprints list (sort + pagination are client-side)
+- `/user/<fp_user_id>/blueprint/<blueprint_id>/` — Blueprint detail: stat cards, favourites/comments trend chart, that blueprint's comments
+- `/user/<fp_user_id>/settings/` — Settings (display name, Disqus name, email alerts, auto-scan setup); `…/settings/test-email/` sends a test
+- `/user/<fp_user_id>/about/` — About page
+- `/user/<fp_user_id>/snapshot/` — Trigger async snapshot (JSON for fetch, else redirect to `next`)
+- `/user/<fp_user_id>/snapshot/status/` — JSON snapshot status for the client-side poller
+
+Legacy (kept, not the primary UI): `/user/<fp_user_id>/` (dashboard), `/user/<fp_user_id>/comments/` (CSV between dates), `/user/<fp_user_id>/recent-comments/`, `/user/<fp_user_id>/snapshots/`.
+
+### Frontend (design system)
+
+The design-system UI is an app shell, not the legacy `base.html`:
+- `templates/monitoring/app_base.html` — shared shell (sidebar nav, user switcher, top bar with search + snapshot button). New pages `{% extends %}` it and fill `{% block content %}`. The content heading lives *in* the content area, not the top bar.
+- `static/monitoring/css/app.css` — the whole design system (tokens for dark + light themes, all components). Single source of truth.
+- `static/monitoring/js/` — `app.js` (theme toggle + persistence, user switcher, Done-toggle fetch), `snapshot.js` (AJAX trigger + status poller), `table-pager.js` (client-side sort + pagination for the blueprints table), `chart.js` (dependency-free SVG trend chart; favourites by snapshot date, comments by real `created_utc`).
+- Partials: `_comment_row.html` (shared by inbox + detail; `hide_blueprint` flag), `_pager.html` (shared pagination).
+- `templatetags/inbox_extras.py` — `smart_time` filter (relative for fresh, absolute date for old, year only for past years).
+- `views.shell_context()` centralizes the chrome context (nav, switcher users, display name, snapshot state) for every shell page.
+- Design direction and component rules are documented in `.interface-design/system.md`; static mockups live in `mockups/`.
+
+The dev email backend is the console backend (`settings.py`), so `send_test_email` and future alerts print to the server console until real SMTP is configured.
 
 ### Templates
 
-Templates are in `monitoring/templates/monitoring/`. `base.html` provides shared layout and a `makeTableSortable()` JS utility used across pages.
+Templates are in `monitoring/templates/monitoring/`. The legacy pages use `base.html` (which provides `makeTableSortable()`); the current app uses `app_base.html` + the design system above.
