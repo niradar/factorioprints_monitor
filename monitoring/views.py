@@ -3,15 +3,24 @@ import logging
 import threading
 
 from django.shortcuts import render, redirect
-from .models import UserSnapshot, BlueprintSnapshot, SnapshotRun
-from .utils import take_snapshot, blueprints_with_new_comments, get_recent_unique_comments
+from .models import UserSnapshot, BlueprintSnapshot, SnapshotRun, CommentStatus
+from .utils import (
+    take_snapshot,
+    blueprints_with_new_comments,
+    get_recent_unique_comments,
+    get_inbox_queryset,
+    get_inbox_counts,
+    user_blueprint_ids,
+)
 from urllib.parse import urlparse
 
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import connection
-from django.http import HttpResponseRedirect
+from django.db.models import Max
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponseBadRequest
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 import csv
 from io import StringIO
 from datetime import timedelta
@@ -218,3 +227,95 @@ def recent_comments(request, fp_user_id):
         'fp_user_id': fp_user_id,
         'page_obj': page_obj,
     })
+
+
+# ---------------------------------------------------------------------------
+# Inbox (new design-system pages)
+# ---------------------------------------------------------------------------
+
+INBOX_FILTERS = ('all', 'needs', 'done')
+INBOX_PER_PAGE_OPTIONS = (10, 25, 50)
+INBOX_DEFAULT_PER_PAGE = 10
+
+
+def shell_context(fp_user_id, user_url, active, awaiting_count=None):
+    """Context shared by every app-shell page (sidebar, switcher, top bar).
+
+    Kept in one place so new pages don't re-derive the chrome. `awaiting_count`
+    is passed in by callers that already computed inbox counts, to avoid running
+    that query twice.
+    """
+    last_snapshot = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts').first()
+    latest_run = SnapshotRun.objects.filter(user_url=user_url).first()
+    blueprint_count = (
+        BlueprintSnapshot.objects.filter(snapshot_ts=last_snapshot.snapshot_ts).count()
+        if last_snapshot else 0
+    )
+    monitored_users = [
+        {'fp_user_id': (uid := extract_fp_user_id(row['user_url'])), 'name': uid, 'is_current': uid == fp_user_id}
+        for row in UserSnapshot.objects.values('user_url').annotate(latest=Max('snapshot_ts')).order_by('-latest')
+    ]
+    return {
+        'active_nav': active,
+        'fp_user_id': fp_user_id,
+        'user_url': user_url,
+        'display_name': fp_user_id,  # TODO: capture the real Disqus/display name when scraping
+        'last_snapshot_ts': last_snapshot.snapshot_ts if last_snapshot else None,
+        'latest_run': latest_run,
+        'snapshot_running': is_snapshot_running(user_url),
+        'blueprint_count': blueprint_count,
+        'monitored_users': monitored_users,
+        'awaiting_count': awaiting_count,
+    }
+
+
+def inbox(request, fp_user_id):
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+
+    status = request.GET.get('status', 'all')
+    if status not in INBOX_FILTERS:
+        status = 'all'
+    query = request.GET.get('q', '').strip()
+    try:
+        per_page = int(request.GET.get('per_page', INBOX_DEFAULT_PER_PAGE))
+    except (TypeError, ValueError):
+        per_page = INBOX_DEFAULT_PER_PAGE
+    if per_page not in INBOX_PER_PAGE_OPTIONS:
+        per_page = INBOX_DEFAULT_PER_PAGE
+
+    comments = get_inbox_queryset(user_url, status=status, query=query)
+    paginator = Paginator(comments, per_page)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    counts = get_inbox_counts(user_url)
+
+    context = {
+        'page_obj': page_obj,
+        # windowed page list (1 … 4 5 6 … 20) instead of every page number
+        'page_range': paginator.get_elided_page_range(page_obj.number, on_each_side=1, on_ends=1),
+        'counts': counts,
+        'status': status,
+        'query': query,
+        'per_page': per_page,
+        'per_page_options': INBOX_PER_PAGE_OPTIONS,
+    }
+    context.update(shell_context(fp_user_id, user_url, active='inbox', awaiting_count=counts['needs']))
+    return render(request, 'monitoring/inbox.html', context)
+
+
+@require_POST
+def toggle_handled(request, fp_user_id, blueprint_id, comment_id):
+    """Flip a comment's handled state. Works as a plain form POST (redirects
+    back) and as a fetch() call (returns JSON) for in-place updates."""
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    # Only let a user toggle comments on their own monitored blueprints.
+    if blueprint_id not in set(user_blueprint_ids(user_url)):
+        return HttpResponseBadRequest("Unknown blueprint for this user.")
+
+    status_obj, _ = CommentStatus.objects.get_or_create(blueprint_id=blueprint_id, comment_id=comment_id)
+    status_obj.handled = not status_obj.handled
+    status_obj.handled_at = timezone.now() if status_obj.handled else None
+    status_obj.save(update_fields=['handled', 'handled_at'])
+
+    if request.headers.get('X-Requested-With') == 'fetch':
+        return JsonResponse({'handled': status_obj.handled})
+    return redirect(request.POST.get('next') or reverse('inbox', args=[fp_user_id]))

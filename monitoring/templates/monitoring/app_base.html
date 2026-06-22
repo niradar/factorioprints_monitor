@@ -1,0 +1,99 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FP Monitor{% endblock %}</title>
+  {# apply saved theme before paint to avoid a flash #}
+  <script>(function(){try{var t=localStorage.getItem('fpm-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="stylesheet" href="{% static 'monitoring/css/app.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
+      <div><div class="name">FP&nbsp;Monitor</div><div class="tag">comment watch</div></div>
+    </div>
+
+    <nav class="nav">
+      <a class="{% if active_nav == 'inbox' %}active{% endif %}" href="{% url 'inbox' fp_user_id %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H7l-3 3z"/></svg>
+        <span class="lbl">Inbox</span>{% if awaiting_count %} <span class="badge mono">{{ awaiting_count }}</span>{% endif %}
+      </a>
+      <a class="disabled" href="#" title="Coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <span class="lbl">Blueprints</span>
+      </a>
+      <div class="sep"></div>
+      <a class="disabled" href="#" title="Coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15M21 12.7a1.6 1.6 0 0 0-1.1-2.7"/></svg>
+        <span class="lbl">Settings</span>
+      </a>
+      <a class="disabled" href="#" title="Coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span class="lbl">About</span>
+      </a>
+    </nav>
+
+    <div class="spacer"></div>
+
+    <div class="userbox">
+      <button class="usermenu" title="Switch user" onclick="toggleSwitcher(event)">
+        <div class="ava">{{ display_name|first }}</div>
+        <div class="uinfo"><div class="who">{{ display_name }}</div><div class="sw">Switch user</div></div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg>
+      </button>
+      <div class="switcher">
+        <div class="swhead">Monitored users</div>
+        {% for u in monitored_users %}
+          <a class="swrow" href="{% url 'inbox' u.fp_user_id %}">
+            <div class="sa">{{ u.name|first }}</div>
+            <div><div class="nm">{{ u.name }}</div></div>
+            {% if u.is_current %}<svg class="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>{% endif %}
+          </a>
+        {% endfor %}
+        <div class="swsep"></div>
+        <a class="swadd" href="{% url 'home' %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Add user
+        </a>
+      </div>
+      <button class="themebtn" onclick="toggleTheme()" title="Toggle light / dark" aria-label="Toggle theme">
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <form class="search" method="get" action="{% block search_action %}{% url 'inbox' fp_user_id %}{% endblock %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input name="q" value="{{ request.GET.q }}" placeholder="Search comments, authors, blueprints…">
+      </form>
+      <div class="right">
+        <div class="scanmeta">
+          {% if last_snapshot_ts %}last scan <b>{{ last_snapshot_ts|timesince }} ago</b>{% else %}<b>no snapshots yet</b>{% endif %}
+          <br>{% if snapshot_running %}⏳ scanning…{% else %}✓ {{ blueprint_count }} blueprints{% endif %}
+        </div>
+        <form method="post" action="{% url 'take_snapshot' fp_user_id %}">
+          {% csrf_token %}
+          <button class="snapbtn" {% if snapshot_running %}disabled{% endif %}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>
+            Take snapshot
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="scroll">
+      {% if messages %}{% for m in messages %}<div class="banner {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <script src="{% static 'monitoring/js/app.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

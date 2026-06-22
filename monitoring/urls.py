@@ -9,4 +9,11 @@ urlpatterns = [
     path('user/<str:fp_user_id>/comments/', views.comments_between, name='comments_between'),
     path('user/<str:fp_user_id>/recent-comments/', views.recent_comments, name='recent_comments'),
     path('user/<str:fp_user_id>/snapshots/', views.user_snapshots, name='user_snapshots'),
+    # New design-system inbox (does not replace the dashboard yet)
+    path('user/<str:fp_user_id>/inbox/', views.inbox, name='inbox'),
+    path(
+        'user/<str:fp_user_id>/comment/<int:blueprint_id>/<str:comment_id>/toggle/',
+        views.toggle_handled,
+        name='toggle_handled',
+    ),
 ]

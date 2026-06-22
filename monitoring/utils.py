@@ -80,6 +80,14 @@ def take_snapshot(user_url: str) -> datetime:
     return snapshot_ts
 
 
+def user_blueprint_ids(user_url):
+    """Blueprint ids that appear in any of this user's snapshots (a queryset of
+    ids). Shared by the recent-comments and inbox queries."""
+    return BlueprintSnapshot.objects.filter(
+        snapshot_ts__in=UserSnapshot.objects.filter(user_url=user_url).values('snapshot_ts')
+    ).values_list('blueprint_id', flat=True)
+
+
 def get_recent_unique_comments(user_url, limit=None):
     """Return the latest unique (blueprint, comment_id) CommentSnapshots for a
     user's blueprints, newest first. The same comment is captured in every
@@ -89,12 +97,8 @@ def get_recent_unique_comments(user_url, limit=None):
     """
     from django.db.models import Max
 
-    user_blueprint_ids = BlueprintSnapshot.objects.filter(
-        snapshot_ts__in=UserSnapshot.objects.filter(user_url=user_url).values('snapshot_ts')
-    ).values_list('blueprint_id', flat=True)
-
     latest_per_comment = (
-        CommentSnapshot.objects.filter(blueprint_id__in=user_blueprint_ids)
+        CommentSnapshot.objects.filter(blueprint_id__in=user_blueprint_ids(user_url))
         .values('blueprint_id', 'comment_id')
         .annotate(latest_id=Max('id'))
         .values_list('latest_id', flat=True)
@@ -107,6 +111,48 @@ def get_recent_unique_comments(user_url, limit=None):
     if limit is not None:
         qs = qs[:limit]
     return qs
+
+
+def _handled_subquery():
+    """Exists() subquery: is the outer CommentSnapshot's comment marked handled?
+    Correlated on (blueprint, comment_id) — the stable comment identity."""
+    from django.db.models import OuterRef
+    from .models import CommentStatus
+
+    return CommentStatus.objects.filter(
+        blueprint_id=OuterRef('blueprint_id'),
+        comment_id=OuterRef('comment_id'),
+        handled=True,
+    )
+
+
+def get_inbox_queryset(user_url, status='all', query=''):
+    """Latest unique comments for the inbox, annotated with `is_handled` and
+    filtered by status ('all' | 'needs' | 'done') and a free-text query."""
+    from django.db.models import Exists, Q
+
+    qs = get_recent_unique_comments(user_url).annotate(is_handled=Exists(_handled_subquery()))
+    if status == 'needs':
+        qs = qs.filter(is_handled=False)
+    elif status == 'done':
+        qs = qs.filter(is_handled=True)
+    if query:
+        qs = qs.filter(
+            Q(message_text__icontains=query)
+            | Q(author__icontains=query)
+            | Q(blueprint__name__icontains=query)
+        )
+    return qs
+
+
+def get_inbox_counts(user_url):
+    """Counts for the filter pills / nav badge: {'all', 'needs', 'done'}."""
+    from django.db.models import Exists
+
+    base = get_recent_unique_comments(user_url).annotate(is_handled=Exists(_handled_subquery()))
+    total = base.count()
+    done = base.filter(is_handled=True).count()
+    return {'all': total, 'needs': total - done, 'done': done}
 
 
 def list_snapshots(user_url=None):

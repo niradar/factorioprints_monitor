@@ -1,0 +1,64 @@
+{% extends "monitoring/app_base.html" %}
+{% block title %}Inbox — {{ display_name }}{% endblock %}
+
+{% block content %}
+{# filter/pagination links share these params; only the changing one is overridden #}
+{% with q_part=query|urlencode %}
+<div class="pagehead">
+  <div>
+    <h2>Last comments</h2>
+    <div class="sub mono">{{ counts.all }} comment{{ counts.all|pluralize }} · <span class="q">{{ counts.needs }} awaiting reply</span></div>
+  </div>
+  <div class="toolbar">
+    <div class="filters">
+      <a class="{% if status == 'all' %}on{% endif %}"   href="?status=all&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}">All</a>
+      <a class="{% if status == 'needs' %}on{% endif %}" href="?status=needs&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}">Needs reply</a>
+      <a class="{% if status == 'done' %}on{% endif %}"  href="?status=done&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}">Done</a>
+    </div>
+  </div>
+</div>
+
+{% if query %}<div class="sub mono" style="margin:-6px 0 12px;color:var(--text-3)">Search: “{{ query }}” · <a href="?status={{ status }}&per_page={{ per_page }}" style="color:var(--accent-text)">clear</a></div>{% endif %}
+
+<div class="listwrap" data-status="{{ status }}">
+  {% for comment in page_obj %}
+    {% include "monitoring/_comment_row.html" %}
+  {% empty %}
+    <div class="empty">
+      {% if query %}No comments match “{{ query }}”.
+      {% elif status == 'needs' %}Nothing awaiting a reply. 🎉
+      {% elif status == 'done' %}Nothing marked done yet.
+      {% else %}No comments yet — take a snapshot to start.{% endif %}
+    </div>
+  {% endfor %}
+</div>
+
+{% if page_obj.paginator.count %}
+<div class="pager">
+  <span class="left">
+    <span class="mono">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
+    <form class="perpage" method="get">
+      <input type="hidden" name="status" value="{{ status }}">
+      {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+      Per page
+      <span class="ppsel">
+        <select name="per_page" onchange="this.form.submit()">
+          {% for opt in per_page_options %}<option value="{{ opt }}" {% if opt == per_page %}selected{% endif %}>{{ opt }}</option>{% endfor %}
+        </select>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+    </form>
+  </span>
+  <span class="pages mono">
+    {% if page_obj.has_previous %}<a href="?status={{ status }}&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}&page={{ page_obj.previous_page_number }}">‹</a>{% else %}<a class="dis">‹</a>{% endif %}
+    {% for n in page_range %}
+      {% if n == page_obj.number %}<a class="cur">{{ n }}</a>
+      {% elif n == page_obj.paginator.ELLIPSIS %}<a class="dis">{{ n }}</a>
+      {% else %}<a href="?status={{ status }}&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}&page={{ n }}">{{ n }}</a>{% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}<a href="?status={{ status }}&per_page={{ per_page }}{% if query %}&q={{ q_part }}{% endif %}&page={{ page_obj.next_page_number }}">›</a>{% else %}<a class="dis">›</a>{% endif %}
+  </span>
+</div>
+{% endif %}
+{% endwith %}
+{% endblock %}

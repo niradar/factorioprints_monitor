@@ -1,0 +1,23 @@
+{% load inbox_extras %}
+<div class="crow{% if comment.is_handled %} is-done{% endif %}">
+  <div class="av">{{ comment.author|first }}</div>
+  <div class="col">
+    <div class="toprow">
+      {% if not comment.is_handled %}<span class="needdot"></span>{% endif %}
+      <a class="bp" href="{{ comment.blueprint.url }}" target="_blank" rel="noopener">{{ comment.blueprint.name }} <span class="ext">↗</span></a>
+      <span class="time" title="{{ comment.created_utc|date:'Y-m-d H:i' }} UTC">{{ comment.created_utc|smart_time }}</span>
+    </div>
+    <div class="said"><span class="who">{{ comment.author }}</span> — {{ comment.message_text }}</div>
+  </div>
+  <div class="act">
+    <a class="ibtn reply" href="{{ comment.blueprint.url }}" target="_blank" rel="noopener">Reply ↗</a>
+    <form class="done-form" method="post" action="{% url 'toggle_handled' fp_user_id comment.blueprint_id comment.comment_id %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button class="ibtn toggle" type="submit" aria-pressed="{{ comment.is_handled|yesno:'true,false' }}">
+        <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="lab">{% if comment.is_handled %}Done{% else %}Mark done{% endif %}</span>
+      </button>
+    </form>
+  </div>
+</div>

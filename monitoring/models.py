@@ -72,3 +72,26 @@ class CommentSnapshot(models.Model):
 
     def __str__(self):
         return f"Comment {self.comment_id} by {self.author} at {self.snapshot_ts}"
+
+
+class CommentStatus(models.Model):
+    """Per-comment 'handled' state for the inbox.
+
+    Handled-ness belongs to a *comment identity* — (blueprint, comment_id) —
+    not to any single snapshot. The same comment is re-captured in every
+    CommentSnapshot, so storing the flag on a snapshot row would make a handled
+    comment reappear as unhandled after the next scrape. This small side table
+    keeps the state stable across snapshots. A row exists only once a comment
+    has been toggled; absence means "not handled".
+    """
+    blueprint = models.ForeignKey(Blueprint, on_delete=models.CASCADE, related_name='comment_statuses')
+    comment_id = models.CharField(max_length=50)
+    handled = models.BooleanField(default=False)
+    handled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('blueprint', 'comment_id')
+        verbose_name_plural = 'comment statuses'
+
+    def __str__(self):
+        return f"CommentStatus({self.blueprint_id}/{self.comment_id}, handled={self.handled})"
