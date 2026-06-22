@@ -313,10 +313,14 @@ def shell_context(fp_user_id, user_url, active, awaiting_count=None):
         BlueprintSnapshot.objects.filter(snapshot_ts=last_snapshot.snapshot_ts).count()
         if last_snapshot else 0
     )
+    # each monitored user shows its own display name (if set), not just the current one
+    display_by_url = dict(
+        UserSettings.objects.exclude(display_name='').values_list('user_url', 'display_name')
+    )
     monitored_users = [
         {
             'fp_user_id': (uid := extract_fp_user_id(row['user_url'])),
-            'name': display_name if uid == fp_user_id else uid,
+            'name': display_by_url.get(row['user_url']) or uid,
             'is_current': uid == fp_user_id,
         }
         for row in UserSnapshot.objects.values('user_url').annotate(latest=Max('snapshot_ts')).order_by('-latest')
