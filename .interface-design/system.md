@@ -2,7 +2,7 @@
 
 A single-user tool for a Factorio blueprint publisher to **answer comments** and **track stats over time**. The product is a *comment inbox*, not a dashboard.
 
-Reference mockups: `mockups/inbox.html`, `mockups/blueprint.html`, `mockups/blueprints.html` (self-contained, open in a browser; nav links between them).
+Reference mockups: `mockups/inbox.html`, `mockups/blueprints.html`, `mockups/blueprint.html`, `mockups/settings.html` (self-contained, open in a browser; nav links between them, theme/switcher/done toggles are interactive).
 
 ## Intent
 
@@ -48,7 +48,7 @@ Rule: **orange = "needs you"** (needs-reply dot, awaiting badge, snapshot button
 
 App shell = **fixed left sidebar (224px) + main column**.
 
-- **Sidebar:** brand mark (orange tile) + "FP Monitor / comment watch"; nav `Inbox · Blueprints · —sep— · Settings · About`; spacer; user box (avatar + name + "switch user →") with the theme icon button at its right edge.
+- **Sidebar:** brand mark (orange tile) + "FP Monitor / comment watch"; nav `Inbox · Blueprints · —sep— · Settings · About`; spacer; user switcher (see below) + a single sun/moon **theme icon button** at its right edge (one button that toggles, not a two-button control).
 - **Top bar (global, 56px):** left = search (320px, `flex:none`); right = scan status + orange "Take snapshot" button. Global only — no page title here.
 - **Content:** its own heading lives *in the content area* (e.g. `<h2>Last comments</h2>` + mono sub-count), then a toolbar (filters / date-range), then the list/cards.
 - **Breadcrumb:** app is shallow — breadcrumb appears ONLY on drill-in (Blueprint detail: `Blueprints › <name>`). No trails elsewhere.
@@ -62,6 +62,9 @@ App shell = **fixed left sidebar (224px) + main column**.
 - **Stat card:** mono number + small green delta + uppercase tertiary label.
 - **Chart:** line+area, one point per snapshot. **Plot by real date** so scan gaps show as spacing; the no-scan stretch is a **dashed segment** with a note that the slope is interpolated. Wide viewBox (e.g. 1000×220) + `preserveAspectRatio="xMidYMid meet"` + `height:auto` — never stretch a fixed-height SVG (distorts points/labels). Compact band so content below stays near the fold.
 - **Table (Blueprints):** sortable headers, mono right-aligned numbers, orange `await` badge for >0 / quiet `—` for 0, clickable rows → detail. Sheds lower-priority columns (Comments, Last comment) under 820px.
+- **User switcher:** the sidebar user box IS a button (hover highlight + up/down chevron — must read as clickable). Click → popover anchored above it (below it under 820px): "Monitored users" list with the current one checked, a divider, then **+ Add user** which expands an inline "paste factorioprints user URL → Go" field. Closes on outside click.
+- **Settings form:** identity is a one-line subtitle, not a section. A compact card of label-left / control-right rows (label col ~200px, collapses to stacked under 820px). Read-only fields for data we already have (the user URL — it *defines* the user, so it's shown not asked; display name comes from the scrape). A **toggle switch** (accent track + knob) for booleans; conditional fields dim (`.off`) when their toggle is off. Don't add controls for non-decisions (no alert-frequency select — one daily snapshot, few comments).
+- **Code block:** copy button lives in a header bar (`label` left, `Copy` right) above the `<pre>` — never overlapping the code. Reference/help content (e.g. Windows auto-scan setup) goes in a collapsed `<details>`, not an always-open block.
 
 ## Responsive (desktop-first, mobile-second)
 

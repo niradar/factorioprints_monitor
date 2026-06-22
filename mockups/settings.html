@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blueprints list mockup — Factorioprints Monitor</title>
+<title>Settings mockup — Factorioprints Monitor</title>
 <style>
   :root[data-theme="dark"] {
     --canvas:    #26241f; --panel: #34312b; --panel-2: #3d3a33; --slot: #1d1b17;
@@ -47,6 +47,7 @@
                   border-radius: 20px; min-width: 19px; height: 19px; padding: 0 6px; display: grid; place-items: center; }
   .side .spacer { flex: 1; }
   .userbox { position: relative; border-top: 1px solid var(--border); padding-top: 12px; display: flex; align-items: center; gap: 8px; }
+  /* the user box IS the switcher — a real button + popover */
   .usermenu { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; text-align: left;
               background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 5px 7px; margin: -5px -7px; color: inherit; font: inherit; }
   .usermenu:hover, .userbox.open .usermenu { background: var(--panel-2); border-color: var(--border); }
@@ -57,6 +58,7 @@
   .userbox .who { font-size: 13px; font-weight: 600; line-height: 1.15; }
   .userbox .sw { font-size: 11px; color: var(--text-3); line-height: 1.1; margin-top: 1px; }
   .uinfo { min-width: 0; }
+  /* switcher popover */
   .switcher { position: absolute; left: 0; bottom: calc(100% + 8px); min-width: 236px; z-index: 50;
               background: var(--panel); border: 1px solid var(--border-strong); border-radius: 10px; padding: 6px;
               box-shadow: 0 12px 32px rgba(0,0,0,.32); display: none; }
@@ -104,56 +106,75 @@
   .snapbtn svg { width: 14px; height: 14px; }
 
   /* ===================== CONTENT ===================== */
-  .scroll { flex: 1; overflow-y: auto; padding: 22px 24px 50px; }
-  .pagehead { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .scroll { flex: 1; overflow-y: auto; padding: 22px 24px 60px; }
+  .wrap { max-width: 760px; }
+  .pagehead { margin-bottom: 18px; }
   .pagehead h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
   .pagehead .sub { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
-  .pagehead .sub .q { color: var(--accent-text); font-weight: 600; }
 
-  /* ---------- blueprint table ---------- */
-  .tablewrap { border: 1px solid var(--border); border-radius: 11px; background: var(--panel); overflow: hidden; }
-  table.bp { width: 100%; border-collapse: collapse; }
-  table.bp thead th {
-    text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--text-3); padding: 11px 16px; border-bottom: 1px solid var(--border); background: var(--panel-2);
-    cursor: pointer; white-space: nowrap; user-select: none;
-  }
-  table.bp thead th.num { text-align: right; }
-  table.bp thead th:hover { color: var(--text-1); }
-  table.bp thead th .arr { color: var(--accent); margin-left: 4px; }
-  table.bp tbody td { padding: 12px 16px; border-top: 1px solid var(--border-soft); font-size: 13.5px; }
-  table.bp tbody tr { cursor: pointer; }
-  table.bp tbody tr:hover { background: var(--panel-2); }
-  table.bp tbody tr:first-child td { border-top: 0; }
+  /* section card */
+  .section { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 6px 18px 14px; margin-bottom: 18px; }
+  .section > h3 { font-size: 14px; font-weight: 700; padding: 14px 0 4px; }
+  .section > .shint { font-size: 12.5px; color: var(--text-3); margin-bottom: 4px; }
 
-  .bpname { font-weight: 600; color: var(--text-1); letter-spacing: -0.01em; }
-  tr:hover .bpname { color: var(--accent-text); }
-  .bpname .ext { color: var(--text-3); font-weight: 400; font-size: 12px; margin-left: 5px; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2);
-           font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
-  .delta { color: var(--good-text); font-weight: 600; margin-left: 7px; font-size: 12px; }
-  .delta.zero { color: var(--text-3); font-weight: 400; }
-  .await { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px;
-           border-radius: 20px; font-size: 12px; font-weight: 700; background: var(--accent); color: var(--on-accent);
-           font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
-  .await.none { background: transparent; color: var(--text-3); font-weight: 400; }
-  td.last { color: var(--text-3); font-size: 12.5px; white-space: nowrap; }
+  /* form row: label/desc left, control right */
+  .frow { display: flex; gap: 24px; padding: 13px 0; border-top: 1px solid var(--border-soft); align-items: center; }
+  .frow:first-of-type { border-top: 0; }
+  .frow .lab { flex: 0 0 200px; }
+  .frow .lab .t { font-size: 13.5px; font-weight: 600; }
+  .frow .lab .d { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.35; }
+  .frow .ctl { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
 
-  /* ---------- pagination (same visual as inbox) ---------- */
-  .pager { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 12.5px; color: var(--text-3); }
-  .pager .left { display: flex; align-items: center; gap: 16px; }
-  .perpage { display: inline-flex; align-items: center; gap: 7px; }
-  .ppsel { position: relative; display: inline-flex; align-items: center; }
-  .ppsel select { appearance: none; -webkit-appearance: none; font: inherit; font-size: 12.5px; cursor: pointer;
-                  color: var(--text-1); background: var(--panel); border: 1px solid var(--border); border-radius: 7px; padding: 4px 26px 4px 9px; }
-  .ppsel select:hover { border-color: var(--border-strong); }
-  .ppsel svg { position: absolute; right: 8px; width: 11px; height: 11px; color: var(--text-3); pointer-events: none; }
-  .pager .pages { display: flex; gap: 4px; }
-  .pager .pages a { min-width: 28px; height: 28px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--border);
-                    display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); }
-  .pager .pages a:hover { border-color: var(--border-strong); color: var(--text-1); }
-  .pager .pages a.cur { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent); }
-  .pager .pages a.dis { opacity: .4; pointer-events: none; }
+  .input { background: var(--slot); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+           color: var(--text-1); font: inherit; font-size: 13.5px; width: 100%; max-width: 380px; }
+  .input::placeholder { color: var(--text-3); }
+  .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .selwrap { position: relative; display: inline-flex; width: 100%; max-width: 220px; }
+  .selwrap select { appearance: none; -webkit-appearance: none; width: 100%; font: inherit; font-size: 13.5px; cursor: pointer;
+                    color: var(--text-1); background: var(--slot); border: 1px solid var(--border); border-radius: 8px; padding: 9px 30px 9px 11px; }
+  .selwrap select:hover { border-color: var(--border-strong); }
+  .selwrap svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; color: var(--text-3); pointer-events: none; }
+
+  /* toggle switch */
+  .switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; }
+  .switch .track { width: 40px; height: 23px; border-radius: 20px; background: var(--slot); border: 1px solid var(--border); transition: .15s; }
+  .switch .knob { position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: var(--text-3); transition: .15s; }
+  .switch input:checked ~ .track { background: var(--accent-soft); border-color: var(--accent); }
+  .switch input:checked ~ .knob { left: 20px; background: var(--accent); }
+
+  .off { opacity: .4; pointer-events: none; }
+
+  /* collapsible reference block */
+  .autoscan { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); padding: 0 16px; }
+  .autoscan summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-2); padding: 13px 0; list-style: none; }
+  .autoscan summary::-webkit-details-marker { display: none; }
+  .autoscan summary:hover { color: var(--text-1); }
+  .autoscan[open] { padding-bottom: 14px; }
+  .steps-inline { font-size: 12.5px; color: var(--text-2); margin-top: 10px; line-height: 1.5; }
+  .steps-inline code { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--accent-text); }
+
+  /* code block: copy lives in a header bar, never over the text */
+  .codeblock { background: var(--slot); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+  .codebar { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+             padding: 6px 8px 6px 12px; background: var(--panel-2); border-bottom: 1px solid var(--border-soft); }
+  .codebar .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; color: var(--text-3); }
+  .copybtn { font: inherit; font-size: 11.5px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+             padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text-2); }
+  .copybtn:hover { color: var(--text-1); border-color: var(--border-strong); }
+  .code { margin: 0; padding: 12px 14px; font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+          font-size: 12px; color: var(--text-2); line-height: 1.6; overflow-x: auto; white-space: pre; }
+
+  /* buttons */
+  .btn-primary { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+                 color: var(--on-accent); background: var(--accent); border: 0; border-radius: 8px; padding: 9px 16px; }
+  .btn-primary:hover { filter: brightness(1.07); }
+  .btn-ghost { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
+               color: var(--text-2); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; align-self: flex-start; }
+  .btn-ghost:hover { color: var(--text-1); border-color: var(--border-strong); }
+
+  .saver { display: flex; align-items: center; gap: 14px; }
+  .saver .note { font-size: 12px; color: var(--text-3); }
 
   /* ===================== RESPONSIVE ===================== */
   @media (max-width: 820px) {
@@ -168,10 +189,7 @@
     .topbar { flex-wrap: wrap; height: auto; padding: 10px 14px; gap: 10px; }
     .search { width: 100%; order: 3; } .scanmeta { display: none; }
     .scroll { padding: 16px 14px 40px; }
-    .pager { flex-direction: column; align-items: flex-start; gap: 12px; }
-    /* drop the lower-priority columns on narrow screens */
-    table.bp .col-comments, table.bp .col-last { display: none; }
-    table.bp tbody td, table.bp thead th { padding-left: 12px; padding-right: 12px; }
+    .frow { flex-direction: column; gap: 10px; } .frow .lab { flex: none; }
   }
 </style>
 </head>
@@ -183,9 +201,9 @@
     </div>
     <nav class="nav">
       <a href="inbox.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H7l-3 3z"/></svg><span class="lbl">Inbox</span> <span class="badge mono">3</span></a>
-      <a class="active" href="blueprints.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span class="lbl">Blueprints</span></a>
+      <a href="blueprints.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span class="lbl">Blueprints</span></a>
       <div class="sep"></div>
-      <a href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15M21 12.7a1.6 1.6 0 0 0-1.1-2.7"/></svg><span class="lbl">Settings</span></a>
+      <a class="active" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15M21 12.7a1.6 1.6 0 0 0-1.1-2.7"/></svg><span class="lbl">Settings</span></a>
       <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg><span class="lbl">About</span></a>
     </nav>
     <div class="spacer"></div>
@@ -236,93 +254,49 @@
     </div>
 
     <div class="scroll">
-      <div class="pagehead">
-        <div>
-          <h2>Blueprints</h2>
-          <div class="sub mono">14 blueprints · <a class="q" href="inbox.html" style="text-decoration:none">3 awaiting reply →</a></div>
+      <div class="wrap">
+        <div class="pagehead">
+          <h2>Settings</h2>
+          <div class="sub">Monitoring <b style="color:var(--text-1)">Nilaus</b></div>
         </div>
-      </div>
 
-      <div class="tablewrap">
-        <table class="bp" id="bptable">
-          <thead>
-            <tr>
-              <th data-type="str">Blueprint</th>
-              <th class="num" data-type="num">Favourites</th>
-              <th class="num col-comments" data-type="num">Comments</th>
-              <th class="num" data-type="num">Awaiting</th>
-              <th class="num col-last" data-type="date">Last comment <span class="arr">▼</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="bpname">Compact Nuclear Reactor 2×2<span class="ext">↗</span></span></td>
-              <td class="num">312<span class="delta">+27</span></td>
-              <td class="num col-comments">24</td>
-              <td class="num"><span class="await">2</span></td>
-              <td class="last col-last" data-sort="20260622121400">2h ago</td>
-            </tr>
-            <tr>
-              <td><span class="bpname">Mall / Everything Factory v3<span class="ext">↗</span></span></td>
-              <td class="num">508<span class="delta">+12</span></td>
-              <td class="num col-comments">41</td>
-              <td class="num"><span class="await">1</span></td>
-              <td class="last col-last" data-sort="20260622090200">5h ago</td>
-            </tr>
-            <tr>
-              <td><span class="bpname">Bot-based Science 1k SPM<span class="ext">↗</span></span></td>
-              <td class="num">241<span class="delta">+3</span></td>
-              <td class="num col-comments">18</td>
-              <td class="num"><span class="await none">—</span></td>
-              <td class="last col-last" data-sort="20260621184200">1d ago</td>
-            </tr>
-            <tr>
-              <td><span class="bpname">Solar + Accumulator Book<span class="ext">↗</span></span></td>
-              <td class="num">421<span class="delta">+9</span></td>
-              <td class="num col-comments">33</td>
-              <td class="num"><span class="await none">—</span></td>
-              <td class="last col-last" data-sort="20260614101100">Jun 14</td>
-            </tr>
-            <tr>
-              <td><span class="bpname">Smelting Array — 45/s Steel<span class="ext">↗</span></span></td>
-              <td class="num">153<span class="delta">+5</span></td>
-              <td class="num col-comments">12</td>
-              <td class="num"><span class="await none">—</span></td>
-              <td class="last col-last" data-sort="20260616093000">Jun 16</td>
-            </tr>
-            <tr>
-              <td><span class="bpname">Balanced 8-8 Belt Balancer<span class="ext">↗</span></span></td>
-              <td class="num">96<span class="delta zero">+0</span></td>
-              <td class="num col-comments">7</td>
-              <td class="num"><span class="await none">—</span></td>
-              <td class="last col-last" data-sort="20260618110500">Jun 18</td>
-            </tr>
-            <tr>
-              <td><span class="bpname">Rocket Silo Supply<span class="ext">↗</span></span></td>
-              <td class="num">77<span class="delta">+1</span></td>
-              <td class="num col-comments">4</td>
-              <td class="num"><span class="await none">—</span></td>
-              <td class="last col-last" data-sort="20260610142000">Jun 10</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div class="section">
+          <div class="frow">
+            <div class="lab"><div class="t">User URL</div><div class="d">Identifies this user — switch user to monitor a different one.</div></div>
+            <div class="ctl" style="gap:8px">
+              <input class="input mono" style="max-width:none;font-size:12px" value="https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52" readonly>
+              <a class="btn-ghost" href="https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52" target="_blank" style="align-self:auto">Open ↗</a>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="lab"><div class="t">Disqus name</div><div class="d">The name you reply under, so the inbox can recognise your own replies.</div></div>
+            <div class="ctl"><input class="input" placeholder="e.g. Nilaus"></div>
+          </div>
+          <div class="frow">
+            <div class="lab"><div class="t">Email alerts</div><div class="d">Email me when a snapshot finds new comments.</div></div>
+            <div class="ctl">
+              <label class="switch"><input type="checkbox" id="alerts" checked onchange="toggleAlerts(this)"><span class="track"></span><span class="knob"></span></label>
+              <input class="input email cond" type="email" value="niradar@gmail.com" placeholder="you@example.com" style="max-width:260px">
+              <button class="btn-ghost cond"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>Test</button>
+            </div>
+          </div>
+        </div>
 
-      <div class="pager">
-        <span class="left">
-          <span class="mono">Showing 1–10 of 14</span>
-          <span class="perpage">Per page
-            <span class="ppsel">
-              <select><option>10</option><option>25</option><option>50</option></select>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-            </span>
-          </span>
-        </span>
-        <span class="pages mono">
-          <a class="dis" href="#">‹</a>
-          <a class="cur" href="#">1</a><a href="#">2</a>
-          <a href="#">›</a>
-        </span>
+        <div class="saver" style="margin-bottom:26px">
+          <button class="btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="width:14px;height:14px"><path d="M20 6 9 17l-5-5"/></svg>Save</button>
+        </div>
+
+        <!-- reference, not settings: compact, collapsed by default -->
+        <details class="autoscan">
+          <summary>Set up automatic daily snapshots (Windows) →</summary>
+          <div class="shint" style="margin:10px 0 8px">Run once in a terminal to scan daily at 08:00, even when the app is closed — it writes straight to the database.</div>
+          <div class="codeblock">
+            <div class="codebar"><span class="lbl">Command Prompt</span><button class="copybtn" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button></div>
+            <pre class="code">schtasks /Create /SC DAILY /ST 08:00 /TN "FactorioPrintsSnapshot" ^
+  /TR "\"C:\projects\factorioprints_monitor\run_snapshot.bat\" https://factorioprints.com/user/I6YX1Ar1cWUwhbQgMcW4nyZkDs52"</pre>
+          </div>
+          <div class="steps-inline">Then in Task Scheduler enable <b>“Run as soon as possible after a missed start”</b> so it still runs if the PC was off. Edit <code>/ST 08:00</code> to change the time.</div>
+        </details>
       </div>
     </div>
   </div>
@@ -342,35 +316,15 @@
   document.addEventListener('click', function (e) {
     document.querySelectorAll('.userbox.open').forEach(b => { if (!b.contains(e.target)) b.classList.remove('open'); });
   });
-  // lightweight sortable (the real app already has makeTableSortable in base.html)
-  (function () {
-    const table = document.getElementById('bptable');
-    const ths = table.querySelectorAll('thead th');
-    const tbody = table.tBodies[0];
-    // every row drills into its blueprint detail page
-    Array.from(tbody.rows).forEach(tr => tr.addEventListener('click', () => location.href = 'blueprint.html'));
-    let curCol = 4, asc = false;
-    function val(tr, idx) {
-      const td = tr.children[idx];
-      const t = ths[idx].dataset.type;
-      if (t === 'num') return parseInt(td.textContent.replace(/[^0-9-]/g, ''), 10) || 0;
-      if (t === 'date') return td.dataset.sort || '';
-      return td.textContent.trim().toLowerCase();
-    }
-    function sort(idx) {
-      asc = curCol === idx ? !asc : (ths[idx].dataset.type === 'str');
-      curCol = idx;
-      Array.from(tbody.rows).sort((a, b) => {
-        const x = val(a, idx), y = val(b, idx);
-        return (x < y ? -1 : x > y ? 1 : 0) * (asc ? 1 : -1);
-      }).forEach(r => tbody.appendChild(r));
-      ths.forEach((th, i) => {
-        const a = th.querySelector('.arr'); if (a) a.remove();
-        if (i === idx) th.insertAdjacentHTML('beforeend', '<span class="arr">' + (asc ? '▲' : '▼') + '</span>');
-      });
-    }
-    ths.forEach((th, i) => th.addEventListener('click', () => sort(i)));
-  })();
+  function toggleAlerts(cb) {
+    document.querySelectorAll('.cond').forEach(el => el.classList.toggle('off', !cb.checked));
+  }
+  function copyCode(btn) {
+    const code = btn.closest('.codeblock').querySelector('.code').textContent;
+    navigator.clipboard && navigator.clipboard.writeText(code);
+    btn.innerHTML = '✓ Copied';
+    setTimeout(() => { btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy'; }, 1400);
+  }
 </script>
 </body>
 </html>
