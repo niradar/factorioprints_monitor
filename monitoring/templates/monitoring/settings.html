@@ -1,0 +1,62 @@
+{% extends "monitoring/app_base.html" %}
+{% block title %}Settings — {{ display_name }}{% endblock %}
+
+{% block content %}
+<div style="max-width:760px">
+  <div class="pagehead">
+    <div>
+      <h2>Settings</h2>
+      <div class="sub">Monitoring <b style="color:var(--text-1)">{{ display_name }}</b></div>
+    </div>
+  </div>
+
+  <form method="post" action="{% url 'settings' fp_user_id %}">
+    {% csrf_token %}
+    <div class="section">
+      <div class="frow">
+        <div class="lab"><div class="t">User URL</div><div class="d">Identifies this user — switch user to monitor a different one.</div></div>
+        <div class="ctl" style="gap:8px">
+          <input class="input mono" style="max-width:none;font-size:12px" value="{{ user_url }}" readonly>
+          <a class="btn-ghost" href="{{ user_url }}" target="_blank" rel="noopener">Open ↗</a>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="lab"><div class="t">Disqus name</div><div class="d">The name you reply under, so the inbox can recognise your own replies.</div></div>
+        <div class="ctl"><input class="input" name="disqus_name" value="{{ settings_obj.disqus_name }}" placeholder="e.g. Nilaus"></div>
+      </div>
+      <div class="frow">
+        <div class="lab"><div class="t">Email alerts</div><div class="d">Email me when a snapshot finds new comments.</div></div>
+        <div class="ctl">
+          <label class="switch">
+            <input type="checkbox" name="alerts_enabled" {% if settings_obj.alerts_enabled %}checked{% endif %} onchange="toggleAlerts(this)">
+            <span class="track"></span><span class="knob"></span>
+          </label>
+          <input class="input email cond{% if not settings_obj.alerts_enabled %} off{% endif %}" name="alert_email" type="email"
+                 value="{{ settings_obj.alert_email }}" placeholder="you@example.com" style="max-width:260px">
+          <button class="btn-ghost cond{% if not settings_obj.alerts_enabled %} off{% endif %}" type="submit"
+                  formaction="{% url 'send_test_email' fp_user_id %}" formnovalidate>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>Test
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="saver" style="margin-bottom:26px">
+      <button class="btn-primary" type="submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="width:14px;height:14px"><path d="M20 6 9 17l-5-5"/></svg>Save
+      </button>
+    </div>
+  </form>
+
+  <details class="autoscan">
+    <summary>Set up automatic daily snapshots (Windows) →</summary>
+    <div class="shint" style="margin:10px 0 8px">Run once in a terminal to scan daily at 08:00, even when the app is closed — it writes straight to the database.</div>
+    <div class="codeblock">
+      <div class="codebar"><span class="lbl">Command Prompt</span><button class="copybtn" type="button" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button></div>
+      <pre class="code">schtasks /Create /SC DAILY /ST 08:00 /TN "FactorioPrintsSnapshot" ^
+  /TR "\"{{ project_dir }}\run_snapshot.bat\" {{ user_url }}"</pre>
+    </div>
+    <div class="steps-inline">Then in Task Scheduler enable <b>“Run as soon as possible after a missed start”</b> so it still runs if the PC was off. Edit <code>/ST 08:00</code> to change the time.</div>
+  </details>
+</div>
+{% endblock %}

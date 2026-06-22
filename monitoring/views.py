@@ -3,7 +3,11 @@ import logging
 import threading
 
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import UserSnapshot, BlueprintSnapshot, SnapshotRun, CommentStatus, Blueprint
+from django.conf import settings as django_settings
+from django.core.mail import send_mail
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from .models import UserSnapshot, BlueprintSnapshot, SnapshotRun, CommentStatus, Blueprint, UserSettings
 from .utils import (
     take_snapshot,
     blueprints_with_new_comments,
@@ -434,3 +438,67 @@ def blueprint_detail(request, fp_user_id, blueprint_id):
     }
     context.update(shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs']))
     return render(request, 'monitoring/blueprint_detail.html', context)
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+def settings_page(request, fp_user_id):
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    obj, _ = UserSettings.objects.get_or_create(user_url=user_url)
+
+    if request.method == 'POST':
+        obj.disqus_name = request.POST.get('disqus_name', '').strip()
+        obj.alerts_enabled = request.POST.get('alerts_enabled') == 'on'
+        obj.alert_email = request.POST.get('alert_email', '').strip()
+
+        error = None
+        if obj.alerts_enabled and not obj.alert_email:
+            error = "Enter an email address to receive alerts."
+        elif obj.alert_email:
+            try:
+                validate_email(obj.alert_email)
+            except ValidationError:
+                error = "That email address doesn't look valid."
+
+        if error:
+            # re-render with the submitted (unsaved) values so nothing is lost
+            messages.error(request, error)
+        else:
+            obj.save()
+            messages.success(request, "Settings saved.")
+            return redirect('settings', fp_user_id=fp_user_id)
+
+    counts = get_inbox_counts(user_url)
+    context = {
+        'settings_obj': obj,
+        'project_dir': str(django_settings.BASE_DIR),
+    }
+    context.update(shell_context(fp_user_id, user_url, active='settings', awaiting_count=counts['needs']))
+    return render(request, 'monitoring/settings.html', context)
+
+
+@require_POST
+def send_test_email(request, fp_user_id):
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    obj, _ = UserSettings.objects.get_or_create(user_url=user_url)
+    email = request.POST.get('alert_email', '').strip() or obj.alert_email
+
+    if not email:
+        messages.error(request, "Enter an email address first.")
+    else:
+        try:
+            validate_email(email)
+            send_mail(
+                subject="FP Monitor — test alert",
+                message=f"This is a test alert for {fp_user_id}. If you got this, email alerts are wired up.",
+                from_email=None,  # uses DEFAULT_FROM_EMAIL
+                recipient_list=[email],
+            )
+            messages.success(request, f"Test email sent to {email}. (Dev: printed to the server console.)")
+        except ValidationError:
+            messages.error(request, "That email address doesn't look valid.")
+        except Exception as exc:
+            messages.error(request, f"Could not send: {exc}")
+    return redirect('settings', fp_user_id=fp_user_id)

@@ -249,6 +249,54 @@ td.last { color: var(--text-3); font-size: 12.5px; white-space: nowrap; text-ali
 .listhead h3 { font-size: 15px; font-weight: 700; }
 .listhead .q { font-size: 12px; color: var(--accent-text); font-weight: 600; }
 
+/* ===================== SETTINGS / FORMS ===================== */
+.section { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 6px 18px 14px; margin-bottom: 18px; }
+.frow { display: flex; gap: 24px; padding: 13px 0; border-top: 1px solid var(--border-soft); align-items: center; }
+.frow:first-of-type { border-top: 0; }
+.frow .lab { flex: 0 0 200px; }
+.frow .lab .t { font-size: 13.5px; font-weight: 600; }
+.frow .lab .d { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.35; }
+.frow .ctl { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
+.input { background: var(--slot); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+         color: var(--text-1); font: inherit; font-size: 13.5px; width: 100%; min-width: 0; max-width: 380px; }
+.input::placeholder { color: var(--text-3); }
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* read-only fields: muted, no focus ring — clearly not editable */
+.input[readonly] { background: var(--canvas); border-style: dashed; color: var(--text-3); cursor: default; }
+.input[readonly]:focus { border-color: var(--border-soft); box-shadow: none; }
+.off { opacity: .4; pointer-events: none; }
+.switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; }
+.switch .track { width: 40px; height: 23px; border-radius: 20px; background: var(--slot); border: 1px solid var(--border); transition: .15s; }
+.switch .knob { position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: var(--text-3); transition: .15s; }
+.switch input:checked ~ .track { background: var(--accent-soft); border-color: var(--accent); }
+.switch input:checked ~ .knob { left: 20px; background: var(--accent); }
+.btn-primary { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+               color: var(--on-accent); background: var(--accent); border: 0; border-radius: 8px; padding: 9px 16px; }
+.btn-primary:hover { filter: brightness(1.07); }
+.btn-ghost { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font: inherit; font-size: 12.5px; font-weight: 500;
+             cursor: pointer; color: var(--text-2); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+.btn-ghost:hover { color: var(--text-1); border-color: var(--border-strong); }
+.saver { display: flex; align-items: center; gap: 14px; }
+
+.shint { font-size: 12.5px; color: var(--text-3); }
+.codeblock { background: var(--slot); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.codebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px 6px 12px;
+           background: var(--panel-2); border-bottom: 1px solid var(--border-soft); }
+.codebar .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; color: var(--text-3); }
+.copybtn { font: inherit; font-size: 11.5px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+           padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text-2); }
+.copybtn:hover { color: var(--text-1); border-color: var(--border-strong); }
+.code { margin: 0; padding: 12px 14px; font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+        font-size: 12px; color: var(--text-2); line-height: 1.6; overflow-x: auto; white-space: pre; }
+.autoscan { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); padding: 0 16px; }
+.autoscan summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-2); padding: 13px 0; list-style: none; }
+.autoscan summary::-webkit-details-marker { display: none; }
+.autoscan summary:hover { color: var(--text-1); }
+.autoscan[open] { padding-bottom: 14px; }
+.steps-inline { font-size: 12.5px; color: var(--text-2); margin-top: 10px; line-height: 1.5; }
+.steps-inline code { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--accent-text); }
+
 /* ===================== RESPONSIVE (desktop-first, mobile-second) ============ */
 @media (max-width: 820px) {
   body { flex-direction: column; height: auto; min-height: 100vh; overflow: auto; }
@@ -272,4 +320,7 @@ td.last { color: var(--text-3); font-size: 12.5px; white-space: nowrap; text-ali
   table.bp tbody td, table.bp thead th { padding-left: 12px; padding-right: 12px; }
   /* detail: stats below the title */
   .stats { margin-left: 0; width: 100%; }
+  /* settings: label above control */
+  .frow { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .frow .lab { flex: none; }
 }

@@ -10,6 +10,20 @@
     try { localStorage.setItem('fpm-theme', next); } catch (e) {}
   };
 
+  // --- settings: dim the email/test controls when alerts are off
+  window.toggleAlerts = function (cb) {
+    document.querySelectorAll('.cond').forEach(function (el) { el.classList.toggle('off', !cb.checked); });
+  };
+
+  // --- settings: copy a code block's command
+  window.copyCode = function (btn) {
+    var code = btn.closest('.codeblock').querySelector('.code').textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(code);
+    var prev = btn.innerHTML;
+    btn.textContent = '✓ Copied';
+    setTimeout(function () { btn.innerHTML = prev; }, 1400);
+  };
+
   // --- user switcher popover
   window.toggleSwitcher = function (e) {
     e.stopPropagation();

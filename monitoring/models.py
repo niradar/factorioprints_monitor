@@ -95,3 +95,22 @@ class CommentStatus(models.Model):
 
     def __str__(self):
         return f"CommentStatus({self.blueprint_id}/{self.comment_id}, handled={self.handled})"
+
+
+class UserSettings(models.Model):
+    """Per-user preferences (one row per monitored user_url).
+
+    - disqus_name: the name the user replies under, for future reply-detection.
+    - alerts_enabled / alert_email: email-alert configuration (the sending is
+      the separate "email alerts" feature; this just stores the config).
+    """
+    user_url = models.URLField(unique=True)
+    disqus_name = models.CharField(max_length=100, blank=True, default='')
+    alerts_enabled = models.BooleanField(default=False)
+    alert_email = models.EmailField(blank=True, default='')
+
+    class Meta:
+        verbose_name_plural = 'user settings'
+
+    def __str__(self):
+        return f"UserSettings({self.user_url})"

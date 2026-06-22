@@ -26,7 +26,7 @@
         <span class="lbl">Blueprints</span>
       </a>
       <div class="sep"></div>
-      <a class="disabled" href="#" title="Coming soon">
+      <a class="{% if active_nav == 'settings' %}active{% endif %}" href="{% url 'settings' fp_user_id %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15M21 12.7a1.6 1.6 0 0 0-1.1-2.7"/></svg>
         <span class="lbl">Settings</span>
       </a>

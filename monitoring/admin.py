@@ -2,7 +2,10 @@ from django.contrib import admin
 
 # Register your models here.
 
-from monitoring.models import UserSnapshot, Blueprint, BlueprintSnapshot, CommentSnapshot, SnapshotRun
+from monitoring.models import (
+    UserSnapshot, Blueprint, BlueprintSnapshot, CommentSnapshot, SnapshotRun,
+    CommentStatus, UserSettings,
+)
 
 @admin.register(UserSnapshot)
 class UserSnapshotAdmin(admin.ModelAdmin):
@@ -34,3 +37,16 @@ class SnapshotRunAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('user_url',)
     ordering = ('-started_at',)
+
+@admin.register(UserSettings)
+class UserSettingsAdmin(admin.ModelAdmin):
+    list_display = ('user_url', 'disqus_name', 'alerts_enabled', 'alert_email')
+    list_filter = ('alerts_enabled',)
+    search_fields = ('user_url', 'disqus_name', 'alert_email')
+
+@admin.register(CommentStatus)
+class CommentStatusAdmin(admin.ModelAdmin):
+    list_display = ('blueprint', 'comment_id', 'handled', 'handled_at')
+    list_filter = ('handled',)
+    search_fields = ('blueprint__name', 'comment_id')
+    ordering = ('-handled_at',)
