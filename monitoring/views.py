@@ -377,30 +377,21 @@ def blueprints_list(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
     rows = get_blueprints_overview(user_url)
 
+    # Server sort gives the initial order (and a no-JS fallback). The page renders
+    # every blueprint, so the browser re-sorts instantly on header click — no
+    # round-trip, no pagination needed at this scale.
     sort = request.GET.get('sort', 'last')
     if sort not in BLUEPRINT_SORTS:
         sort = 'last'
     direction = 'asc' if request.GET.get('dir') == 'asc' else 'desc'
     rows.sort(key=BLUEPRINT_SORTS[sort], reverse=(direction == 'desc'))
 
-    per_page = _per_page(request)
-    paginator = Paginator(rows, per_page)
-    page_obj = paginator.get_page(request.GET.get('page'))
     counts = get_inbox_counts(user_url)
-
-    pager_hidden = {'sort': sort, 'dir': direction}
-    qs = urlencode({**pager_hidden, 'per_page': per_page})
-
     context = {
-        'page_obj': page_obj,
-        'page_range': paginator.get_elided_page_range(page_obj.number, on_each_side=1, on_ends=1),
-        'qs': qs,
-        'pager_hidden': pager_hidden,
+        'rows': rows,
         'total': len(rows),
         'sort': sort,
         'dir': direction,
-        'per_page': per_page,
-        'per_page_options': PER_PAGE_OPTIONS,
     }
     context.update(shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs']))
     return render(request, 'monitoring/blueprints.html', context)

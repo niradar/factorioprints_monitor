@@ -76,15 +76,23 @@
                ' L' + pts[j].x.toFixed(1) + ',' + pts[j].y.toFixed(1) + '"/>');
     }
 
+    // Only mark a point where the value changes (plus the first/last). A long
+    // flat run (e.g. 0 comments for weeks) collapses to its endpoints instead
+    // of a row of overlapping circles.
     pts.forEach(function (p, idx) {
       var last = idx === pts.length - 1;
+      var changed = idx === 0 || last || data[idx].v !== data[idx - 1].v;
+      if (!changed) return;
       svg.push('<circle class="pt' + (last ? ' last' : '') + '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) +
-               '" r="' + (last ? 5 : 4) + '"><title>' + fmtDate(p.t) + ': ' + p.v + '</title></circle>');
+               '" r="' + (last ? 4 : 3) + '"><title>' + fmtDate(p.t) + ': ' + p.v + '</title></circle>');
     });
 
+    // x labels: anchor the first to its start and the last to its end so neither
+    // gets clipped at the chart edges.
     var idxs = pts.length === 1 ? [0] : [0, Math.floor((pts.length - 1) / 2), pts.length - 1];
     idxs.forEach(function (k) {
-      svg.push('<text class="axis" x="' + pts[k].x.toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle">' + fmtDate(pts[k].t) + '</text>');
+      var anchor = k === 0 ? 'start' : (k === pts.length - 1 ? 'end' : 'middle');
+      svg.push('<text class="axis" x="' + pts[k].x.toFixed(1) + '" y="' + (H - 12) + '" text-anchor="' + anchor + '">' + fmtDate(pts[k].t) + '</text>');
     });
 
     svg.push('</svg>');
