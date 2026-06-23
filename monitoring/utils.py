@@ -85,6 +85,63 @@ def take_snapshot(user_url: str) -> datetime:
     return snapshot_ts
 
 
+def monitored_user_urls():
+    """Every FactorioPrints account this install monitors, as a sorted list of
+    user_urls. The union of accounts that have at least one snapshot (what the
+    switcher shows) and accounts configured in Settings (a UserSettings row),
+    so a freshly-configured account is scanned even before its first snapshot.
+    Used by the `snapshot_all` command that drives scheduled scans."""
+    from .models import UserSettings
+
+    urls = set(UserSnapshot.objects.values_list('user_url', flat=True).distinct())
+    urls |= set(UserSettings.objects.values_list('user_url', flat=True))
+    return sorted(urls)
+
+
+def delete_user_account(user_url):
+    """Remove every trace of one monitored account and return deleted counts.
+
+    Deletes the account's snapshots, snapshot-run history and settings. Its
+    blueprints are removed only when no other account references them (in
+    practice a blueprint belongs to a single user); the CASCADE on Blueprint
+    then takes their BlueprintSnapshot/CommentSnapshot rows and handled flags
+    (CommentStatus) with them. For any blueprint shared with another account,
+    only this account's own snapshot rows are removed, leaving the blueprint
+    and the other account's data intact. Runs in a single transaction.
+    """
+    from .models import BlueprintSnapshot, CommentSnapshot, SnapshotRun, UserSettings
+
+    with transaction.atomic():
+        snap_ts = list(
+            UserSnapshot.objects.filter(user_url=user_url).values_list('snapshot_ts', flat=True)
+        )
+        my_bp = set(
+            BlueprintSnapshot.objects.filter(snapshot_ts__in=snap_ts)
+            .values_list('blueprint_id', flat=True)
+        )
+        # blueprints also captured under some OTHER account's snapshots
+        shared = set(
+            BlueprintSnapshot.objects.filter(blueprint_id__in=my_bp)
+            .exclude(snapshot_ts__in=snap_ts)
+            .values_list('blueprint_id', flat=True)
+        )
+        exclusive = my_bp - shared
+
+        counts = {}
+        if shared:
+            counts['comment_snapshots'] = CommentSnapshot.objects.filter(
+                snapshot_ts__in=snap_ts, blueprint_id__in=shared).delete()[0]
+            counts['blueprint_snapshots'] = BlueprintSnapshot.objects.filter(
+                snapshot_ts__in=snap_ts, blueprint_id__in=shared).delete()[0]
+        # Exclusive blueprints: deleting the canonical row cascades to its
+        # snapshots, comment snapshots and handled flags.
+        counts['blueprints'] = Blueprint.objects.filter(id__in=exclusive).delete()[0]
+        counts['user_snapshots'] = UserSnapshot.objects.filter(user_url=user_url).delete()[0]
+        counts['snapshot_runs'] = SnapshotRun.objects.filter(user_url=user_url).delete()[0]
+        counts['settings'] = UserSettings.objects.filter(user_url=user_url).delete()[0]
+    return counts
+
+
 def user_blueprint_ids(user_url):
     """Blueprint ids that appear in any of this user's snapshots (a queryset of
     ids). Shared by the recent-comments and inbox queries."""

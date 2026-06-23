@@ -9,6 +9,7 @@
   --text-1: #f4f1ea; --text-2: #c2bcae; --text-3: #8f897b;
   --accent: #ff9d2e; --accent-text: #ffb35a; --accent-soft: rgba(255,157,46,.14); --on-accent: #221f17;
   --good: #97c84d; --good-text: #b4dd6f; --good-soft: rgba(151,200,77,.15);
+  --bad: #d8543f; --bad-text: #e8836f; --bad-soft: rgba(216,84,63,.13);
   --grid: rgba(255,250,235,.07);
 }
 :root[data-theme="light"] {
@@ -17,6 +18,7 @@
   --text-1: #23201a; --text-2: #5b554a; --text-3: #8f897b;
   --accent: #e07d12; --accent-text: #b3610a; --accent-soft: rgba(224,125,18,.12); --on-accent: #fff;
   --good: #5a8a26; --good-text: #436b1a; --good-soft: rgba(90,138,38,.13);
+  --bad: #b23a26; --bad-text: #973020; --bad-soft: rgba(178,58,38,.10);
   --grid: rgba(38,32,22,.09);
 }
 
@@ -280,7 +282,17 @@ td.last { color: var(--text-3); font-size: 12.5px; white-space: nowrap; text-ali
              cursor: pointer; color: var(--text-2); background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
 .btn-ghost:hover { color: var(--text-1); border-color: var(--border-strong); }
 .btn-ghost:disabled { opacity: .5; cursor: default; }
+.btn-danger { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font: inherit; font-size: 12.5px; font-weight: 600;
+              cursor: pointer; color: var(--bad-text); background: transparent; border: 1px solid var(--bad); border-radius: 8px; padding: 8px 14px; }
+.btn-danger:hover { color: #fff; background: var(--bad); border-color: var(--bad); }
+.btn-danger svg { width: 14px; height: 14px; flex: none; }
 .saver { display: flex; align-items: center; gap: 14px; }
+
+/* Danger zone - destructive account actions. Subtle by design: a normal panel
+   with a muted caption; the red lives only in the button. */
+.danger-zone { margin: 30px 0 18px; }
+.danger-zone .dz-head { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--bad-text); font-weight: 600; margin: 0 0 8px 2px; }
+.danger-zone .section { margin-bottom: 0; }
 
 .shint { font-size: 12.5px; color: var(--text-3); }
 .codeblock { background: var(--slot); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }

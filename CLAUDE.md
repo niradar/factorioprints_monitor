@@ -24,11 +24,15 @@ python manage.py runserver 0.0.0.0:8129   # manual
 python manage.py migrate
 python manage.py makemigrations monitoring
 
-# Tests
+# Tests - ALWAYS via the Django runner (isolated test DB).
+# These are Django TestCase tests; bare `pytest` has no DB isolation and would
+# write fixtures (e.g. the `u1` user) into the real db.sqlite3. A root conftest.py
+# aborts bare pytest against the real DB (override: FPM_ALLOW_PYTEST=1).
 python manage.py test monitoring
 
 # Management commands
 python manage.py take_snapshot --user-url "https://factorioprints.com/user/<USER_ID>"
+python manage.py snapshot_all          # snapshot every monitored account (drives scheduled scans)
 python manage.py list_snapshots [--user-url "..."]
 python manage.py latest_blueprints --user-url "..."
 python manage.py delete_snapshot --timestamp "2025-06-05T08:00:00+00:00"
@@ -39,14 +43,18 @@ Set `DJANGO_SETTINGS_MODULE=factorioprints_monitor.settings` when running outsid
 
 ### Scheduled snapshots (Windows Task Scheduler)
 
-`run_snapshot.bat "<user_url>"` takes one snapshot via the management command (no web server required - it writes directly to SQLite). Register it to run on a schedule:
+`run_snapshot_all.bat` snapshots **every monitored account** via the `snapshot_all` management command (no web server required - it writes directly to SQLite). The account list comes from the DB (`utils.monitored_user_urls()` - the union of accounts with snapshots and accounts with a `UserSettings` row), so one task covers all accounts and there is no per-account task name to collide. Accounts are scanned sequentially; one failing does not abort the rest, and a non-zero exit flags Task Scheduler's "Last Run Result". Each run appends to `logs\snapshot.log`. Register it via PowerShell:
 
-```bat
-schtasks /Create /SC DAILY /ST 08:00 /TN "FactorioPrintsSnapshot" ^
-  /TR "\"C:\projects\factorioprints_monitor\run_snapshot.bat\" https://factorioprints.com/user/<USER_ID>"
+```powershell
+Register-ScheduledTask -TaskName "FactorioPrintsSnapshot" -Force `
+  -Action (New-ScheduledTaskAction -Execute "C:\projects\factorioprints_monitor\run_snapshot_all.bat") `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At 8am) `
+  -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)
 ```
 
-In Task Scheduler, enable "Run task as soon as possible after a scheduled start is missed" so a snapshot still runs when the PC was off at the scheduled time.
+`-StartWhenAvailable` is the scripted equivalent of "Run task as soon as possible after a scheduled start is missed", so a snapshot still runs when the PC was off at the scheduled time. (The old `schtasks` command had no flag for this and required ticking that box manually in Task Scheduler.)
+
+`run_snapshot.bat "<user_url>"` still exists for snapshotting a single account on demand (also logs to `logs\snapshot.log`).
 
 ## Architecture
 
@@ -97,6 +105,7 @@ Design-system app (current):
 - `/user/<fp_user_id>/blueprints/` - Sortable blueprints list (sort + pagination are client-side)
 - `/user/<fp_user_id>/blueprint/<blueprint_id>/` - Blueprint detail: stat cards, favourites/comments trend chart, that blueprint's comments
 - `/user/<fp_user_id>/settings/` - Settings (display name, Disqus name, email alerts, auto-scan setup); `…/settings/test-email/` sends a test
+- `/user/<fp_user_id>/settings/remove/` - Danger zone: POST deletes this account's data (`utils.delete_user_account()`) and redirects to `/` (which routes to another account or onboarding)
 - `/user/<fp_user_id>/about/` - About page
 - `/user/<fp_user_id>/snapshot/` - Trigger async snapshot (JSON for fetch, else redirect to `next`)
 - `/user/<fp_user_id>/snapshot/status/` - JSON snapshot status for the client-side poller

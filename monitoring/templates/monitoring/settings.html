@@ -54,13 +54,37 @@
 
   <details class="autoscan">
     <summary>Set up automatic daily snapshots (Windows) →</summary>
-    <div class="shint" style="margin:10px 0 8px">Run once in a terminal to scan daily at 08:00, even when the app is closed - it writes straight to the database.</div>
+    <div class="shint" style="margin:10px 0 8px">Run once in a <b>PowerShell</b> terminal to scan <b>every account you monitor</b> daily at 08:00, even when the app is closed - it writes straight to the database. One task covers all accounts, so run this only once (not per account).</div>
     <div class="codeblock">
-      <div class="codebar"><span class="lbl">Command Prompt</span><button class="copybtn" type="button" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button></div>
-      <pre class="code">schtasks /Create /SC DAILY /ST 08:00 /TN "FactorioPrintsSnapshot" ^
-  /TR "\"{{ project_dir }}\run_snapshot.bat\" {{ user_url }}"</pre>
+      <div class="codebar"><span class="lbl">PowerShell</span><button class="copybtn" type="button" onclick="copyCode(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button></div>
+      <pre class="code">Register-ScheduledTask -TaskName "FactorioPrintsSnapshot" -Force `
+  -Action (New-ScheduledTaskAction -Execute "{{ project_dir }}\run_snapshot_all.bat") `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At 8am) `
+  -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)</pre>
     </div>
-    <div class="steps-inline">Then in Task Scheduler enable <b>“Run as soon as possible after a missed start”</b> so it still runs if the PC was off. Edit <code>/ST 08:00</code> to change the time.</div>
+    <div class="steps-inline"><code>-StartWhenAvailable</code> makes it run as soon as the PC is on if it was off at 08:00 - no manual step in Task Scheduler. Edit <code>-At 8am</code> to change the time. Each run appends to <code>logs\snapshot.log</code>. Add or remove accounts in the app and the daily scan follows automatically.</div>
   </details>
+
+  <div class="danger-zone">
+    <div class="dz-head">Danger zone</div>
+    <div class="section">
+      <div class="frow">
+        <div class="lab">
+          <div class="t">Stop monitoring this account</div>
+          <div class="d">Permanently deletes <b>{{ display_name }}</b> and all its data. Can't be undone.</div>
+        </div>
+        <div class="ctl" style="justify-content:flex-end">
+          <form method="post" action="{% url 'remove_account' fp_user_id %}"
+                onsubmit="return confirm('Permanently remove {{ display_name|escapejs }} and all of its data? This cannot be undone.')">
+            {% csrf_token %}
+            <button class="btn-danger" type="submit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m-9 0v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6"/></svg>
+              Remove account
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

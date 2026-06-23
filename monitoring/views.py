@@ -459,6 +459,22 @@ def settings_page(request, fp_user_id):
     return render(request, 'monitoring/settings.html', context)
 
 
+def remove_account(request, fp_user_id):
+    """Stop monitoring an account: delete all of its data, then go to the
+    landing route (which routes to another account, or onboarding if none)."""
+    user_url = f"https://factorioprints.com/user/{fp_user_id}"
+    if request.method != 'POST':
+        return redirect('settings', fp_user_id=fp_user_id)
+    if is_snapshot_running(user_url):
+        messages.warning(request, "A snapshot is running for this account - wait for it to finish, then remove.")
+        return redirect('settings', fp_user_id=fp_user_id)
+
+    from .utils import delete_user_account
+    delete_user_account(user_url)
+    messages.success(request, f"Removed {fp_user_id} and all of its data.")
+    return redirect('home')
+
+
 def about(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
     counts = get_inbox_counts(user_url)

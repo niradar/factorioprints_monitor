@@ -884,3 +884,99 @@ class SnapshotRunModelTest(TestCase):
     def test_str_contains_status(self):
         run = SnapshotRun.objects.create(user_url="https://factorioprints.com/user/u1")
         self.assertIn("running", str(run))
+
+
+class MonitoredUserUrlsTest(TestCase):
+    def test_union_of_snapshots_and_settings(self):
+        from monitoring.models import UserSettings
+        from monitoring.utils import monitored_user_urls
+
+        ts = timezone.now()
+        UserSnapshot.objects.create(snapshot_ts=ts, user_url="https://fp.com/user/a")
+        # an account configured in settings but never snapshotted is still monitored
+        UserSettings.objects.create(user_url="https://fp.com/user/b")
+        self.assertEqual(
+            monitored_user_urls(),
+            ["https://fp.com/user/a", "https://fp.com/user/b"],
+        )
+
+    def test_empty(self):
+        from monitoring.utils import monitored_user_urls
+        self.assertEqual(monitored_user_urls(), [])
+
+
+class DeleteUserAccountTest(TestCase):
+    def setUp(self):
+        from monitoring.models import CommentStatus, UserSettings
+
+        self.url = "https://factorioprints.com/user/del"
+        self.ts = timezone.now()
+        UserSnapshot.objects.create(snapshot_ts=self.ts, user_url=self.url)
+        self.bp = Blueprint.objects.create(url="https://fp.com/bp/del1", name="DelBP")
+        BlueprintSnapshot.objects.create(
+            snapshot_ts=self.ts, blueprint=self.bp, name="DelBP", favourites=1, total_comments=1
+        )
+        CommentSnapshot.objects.create(
+            snapshot_ts=self.ts, blueprint=self.bp, comment_id="c1",
+            author="x", created_utc=self.ts, message_text="hi",
+        )
+        CommentStatus.objects.create(blueprint=self.bp, comment_id="c1", handled=True)
+        UserSettings.objects.create(user_url=self.url, display_name="Del")
+        SnapshotRun.objects.create(user_url=self.url, status=SnapshotRun.SUCCESS)
+
+    def test_removes_all_traces(self):
+        from monitoring.models import CommentStatus, UserSettings
+        from monitoring.utils import delete_user_account
+
+        delete_user_account(self.url)
+
+        self.assertFalse(UserSnapshot.objects.filter(user_url=self.url).exists())
+        self.assertFalse(UserSettings.objects.filter(user_url=self.url).exists())
+        self.assertFalse(SnapshotRun.objects.filter(user_url=self.url).exists())
+        # the exclusive blueprint and its cascaded rows are gone
+        self.assertFalse(Blueprint.objects.filter(id=self.bp.id).exists())
+        self.assertFalse(BlueprintSnapshot.objects.filter(snapshot_ts=self.ts).exists())
+        self.assertFalse(CommentSnapshot.objects.filter(snapshot_ts=self.ts).exists())
+        self.assertFalse(CommentStatus.objects.filter(blueprint_id=self.bp.id).exists())
+
+    def test_keeps_blueprint_shared_with_another_account(self):
+        """A blueprint also captured under another account survives; only this
+        account's own snapshot rows for it are removed."""
+        from monitoring.utils import delete_user_account
+
+        other_url = "https://factorioprints.com/user/keep"
+        other_ts = self.ts + timedelta(days=1)
+        UserSnapshot.objects.create(snapshot_ts=other_ts, user_url=other_url)
+        BlueprintSnapshot.objects.create(
+            snapshot_ts=other_ts, blueprint=self.bp, name="DelBP", favourites=2, total_comments=0
+        )
+
+        delete_user_account(self.url)
+
+        # blueprint kept because the other account still references it
+        self.assertTrue(Blueprint.objects.filter(id=self.bp.id).exists())
+        # the other account's snapshot row is intact; the deleted account's is gone
+        self.assertTrue(BlueprintSnapshot.objects.filter(snapshot_ts=other_ts).exists())
+        self.assertFalse(BlueprintSnapshot.objects.filter(snapshot_ts=self.ts).exists())
+
+
+class RemoveAccountViewTest(TestCase):
+    def setUp(self):
+        from monitoring.models import UserSettings
+
+        self.fp_user_id = "del"
+        self.url = "https://factorioprints.com/user/del"
+        self.endpoint = reverse("remove_account", args=[self.fp_user_id])
+        UserSnapshot.objects.create(snapshot_ts=timezone.now(), user_url=self.url)
+        UserSettings.objects.create(user_url=self.url, display_name="Del")
+
+    def test_post_deletes_and_redirects_home(self):
+        resp = self.client.post(self.endpoint)
+        self.assertRedirects(resp, reverse("home"), fetch_redirect_response=False)
+        self.assertFalse(UserSnapshot.objects.filter(user_url=self.url).exists())
+
+    def test_get_is_noop_redirect(self):
+        resp = self.client.get(self.endpoint)
+        self.assertEqual(resp.status_code, 302)
+        # nothing deleted on a GET
+        self.assertTrue(UserSnapshot.objects.filter(user_url=self.url).exists())

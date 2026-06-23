@@ -61,19 +61,26 @@ Open a new terminal after `setx`, then use **Test** in Settings to verify.
 
 ## 5. Scheduled snapshots (Windows Task Scheduler)
 
-`run_snapshot.bat "<user_url>"` takes one snapshot via the management command - no web
-server required (it writes straight to SQLite) - and triggers email alerts if enabled.
-Register it to run on a schedule:
+`run_snapshot_all.bat` snapshots **every account you monitor** via the management command -
+no web server required (it writes straight to SQLite) - and triggers email alerts if
+enabled. The account list comes from the database, so one scheduled task covers all
+accounts (add or remove accounts in the app and the daily scan follows automatically).
 
-Replace `<install-dir>` with the folder where you cloned the project:
+Replace `<install-dir>` with the folder where you cloned the project, and run it once in
+**PowerShell**:
 
-```bat
-schtasks /Create /SC DAILY /ST 08:00 /TN "FactorioPrintsSnapshot" ^
-  /TR "\"<install-dir>\run_snapshot.bat\" https://factorioprints.com/user/<USER_ID>"
+```powershell
+Register-ScheduledTask -TaskName "FactorioPrintsSnapshot" -Force `
+  -Action (New-ScheduledTaskAction -Execute "<install-dir>\run_snapshot_all.bat") `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At 8am) `
+  -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)
 ```
 
-In Task Scheduler, enable **“Run task as soon as possible after a scheduled start is
-missed”** so a snapshot still runs if the PC was off at the scheduled time.
+`-StartWhenAvailable` makes the task run as soon as the PC is on if it was off at the
+scheduled time, so a missed 08:00 run still happens later that day. Edit `-At 8am` to
+change the time. Each run appends to `logs\snapshot.log` for troubleshooting.
+
+To scan a single account instead, use `run_snapshot.bat "<user_url>"`.
 
 ## 6. Management commands (CLI)
 
