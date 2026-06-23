@@ -19,7 +19,7 @@
       <div class="k">Favourites{% if fav_delta is not None %} · 30d{% endif %}</div>
     </div>
     <div class="statcard"><div class="n">{{ comments_total }}</div><div class="k">Comments</div></div>
-    <div class="statcard"><div class="n accent">{{ awaiting }}</div><div class="k">Awaiting reply</div></div>
+    <div class="statcard"><div class="n accent js-awaiting">{{ awaiting }}</div><div class="k">Awaiting reply</div></div>
   </div>
 </div>
 
@@ -50,7 +50,7 @@
 <div class="listhead">
   <h3>Comments</h3>
   <span class="mono" style="color:var(--text-3)">{{ comments|length }}</span>
-  {% if awaiting %}<span class="q">· {{ awaiting }} awaiting reply</span>{% endif %}
+  <span class="q" data-hide-when-zero{% if not awaiting %} hidden{% endif %}>· <span class="js-awaiting">{{ awaiting }}</span> awaiting reply</span>
 </div>
 {% if comments %}
 <div class="listwrap" data-status="all">

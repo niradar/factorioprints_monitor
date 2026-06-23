@@ -43,6 +43,35 @@
     }
   });
 
+  // --- live "awaiting reply" counters: nudge every counter on the page by a
+  // delta without a reload. Marking a comment done lowers each awaiting count
+  // that includes it (nav badge, inbox header, a blueprint's own count) by 1;
+  // un-marking raises them. Elements opt in with class .js-awaiting; those
+  // tagged data-hide-when-zero disappear at 0, and anything marked
+  // data-show-when-awaiting follows the user-level badge.
+  function awaitingValue(el) {
+    // the counter is the element itself, or a .js-awaiting descendant of it
+    var n = el.querySelector('.js-awaiting') || el;
+    return Math.max(0, parseInt(n.textContent, 10) || 0);
+  }
+  function applyAwaitingDelta(delta) {
+    document.querySelectorAll('.js-awaiting').forEach(function (el) {
+      el.textContent = Math.max(0, (parseInt(el.textContent, 10) || 0) + delta);
+    });
+    // counters (or their wrappers) that vanish at zero
+    document.querySelectorAll('[data-hide-when-zero]').forEach(function (el) {
+      el.hidden = awaitingValue(el) === 0;
+    });
+    // chrome that follows the user-level badge (e.g. inbox "Mark all done")
+    var badge = document.getElementById('nav-awaiting');
+    if (badge) {
+      var any = awaitingValue(badge) > 0;
+      document.querySelectorAll('[data-show-when-awaiting]').forEach(function (el) {
+        el.hidden = !any;
+      });
+    }
+  }
+
   // --- Done toggle: upgrade the plain form POST to an in-place fetch
   document.addEventListener('submit', function (e) {
     var form = e.target.closest('.done-form');
@@ -65,6 +94,7 @@
         btn.setAttribute('aria-pressed', String(on));
         btn.querySelector('.lab').textContent = on ? 'Done' : 'Mark done';
         row.classList.toggle('is-done', on);
+        applyAwaitingDelta(on ? -1 : 1);
         // In a filtered view the row no longer belongs - fade it out.
         if (status && status !== 'all') {
           row.style.transition = 'opacity .2s ease';
