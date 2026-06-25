@@ -12,7 +12,12 @@
   var headers = Array.prototype.slice.call(table.querySelectorAll('thead th'));
   var allRows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
   var PER_OPTIONS = [10, 25, 50];
-  var state = { sort: 4, asc: false, page: 1, per: 10 };  // default: last comment, newest first
+  // Pick up the server's initial sort (column index + direction) so the window
+  // switcher's "sort by Δ" survives the client-side takeover. Falls back to the
+  // last column (last comment), newest first.
+  var initCol = parseInt(table.getAttribute('data-sort-col'), 10);
+  if (isNaN(initCol)) initCol = headers.length - 1;
+  var state = { sort: initCol, asc: table.getAttribute('data-sort-asc') === '1', page: 1, per: 10 };
 
   function value(row, idx, type) {
     var td = row.children[idx];

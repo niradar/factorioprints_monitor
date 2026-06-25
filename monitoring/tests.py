@@ -511,6 +511,48 @@ class GetLatestBlueprintsTest(TestCase):
         self.assertEqual(list(result), [])
 
 
+class GetBlueprintsOverviewTest(TestCase):
+    """The Δ-window column on the Blueprints list: favourites gained vs the
+    nearest snapshot at/before `latest - baseline_days`, plus the baseline ts."""
+
+    def setUp(self):
+        self.url = "https://factorioprints.com/user/u1"
+        self.bp = Blueprint.objects.create(url="https://fp.com/bp/1", name="BP1")
+        self.now = timezone.now()
+        # favourites: 30 days ago = 10, yesterday = 18, today = 20.
+        for days_ago, fav in [(30, 10), (1, 18), (0, 20)]:
+            ts = self.now - timedelta(days=days_ago)
+            UserSnapshot.objects.create(snapshot_ts=ts, user_url=self.url)
+            BlueprintSnapshot.objects.create(
+                snapshot_ts=ts, blueprint=self.bp, name="BP1", favourites=fav, total_comments=0
+            )
+
+    def test_no_snapshots_returns_empty_tuple(self):
+        from monitoring.utils import get_blueprints_overview
+        rows, baseline_ts = get_blueprints_overview("https://factorioprints.com/user/nobody")
+        self.assertEqual(rows, [])
+        self.assertIsNone(baseline_ts)
+
+    def test_today_window_measures_against_yesterday(self):
+        from monitoring.utils import get_blueprints_overview
+        rows, baseline_ts = get_blueprints_overview(self.url, baseline_days=1)
+        self.assertEqual(rows[0]["fav_delta"], 2)  # 20 - 18
+        self.assertEqual(baseline_ts, self.now - timedelta(days=1))
+
+    def test_30d_window_measures_against_oldest(self):
+        from monitoring.utils import get_blueprints_overview
+        rows, baseline_ts = get_blueprints_overview(self.url, baseline_days=30)
+        self.assertEqual(rows[0]["fav_delta"], 10)  # 20 - 10
+        self.assertEqual(baseline_ts, self.now - timedelta(days=30))
+
+    def test_no_baseline_in_window_gives_none(self):
+        from monitoring.utils import get_blueprints_overview
+        # No snapshot is 90+ days old, so there is nothing to diff against.
+        rows, baseline_ts = get_blueprints_overview(self.url, baseline_days=90)
+        self.assertIsNone(rows[0]["fav_delta"])
+        self.assertIsNone(baseline_ts)
+
+
 class BlueprintsWithNewCommentsTest(TestCase):
     """Test CSV generation and nearest-date fallback logic."""
 

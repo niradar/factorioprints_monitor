@@ -124,7 +124,9 @@ svg { display: block; }
 .pagehead h2 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
 .pagehead .sub { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
 .pagehead .sub .q { color: var(--accent-text); font-weight: 600; }
+.pagehead .sub .up { color: var(--good-text); font-weight: 600; }
 .toolbar { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.toolbar-label { font-size: 12px; color: var(--text-3); }
 
 .filters { display: inline-flex; background: var(--slot); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
 .filters a { font-size: 12.5px; font-weight: 500; padding: 6px 12px; border-radius: 6px; color: var(--text-3); white-space: nowrap; }
@@ -203,7 +205,9 @@ table.bp tbody tr:first-child td { border-top: 0; }
 tr:hover .bpname { color: var(--accent-text); }
 td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2);
          font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
-.delta { font-weight: 600; margin-left: 7px; font-size: 12px; color: var(--good-text); }
+.delta { font-weight: 600; font-size: 12px; color: var(--good-text); }
+.delta.up { color: var(--good-text); }
+.delta.down { color: var(--bad-text); }
 .delta.flat { color: var(--text-3); font-weight: 400; }
 .await { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px;
          border-radius: 20px; font-size: 12px; font-weight: 700; background: var(--accent); color: var(--on-accent);

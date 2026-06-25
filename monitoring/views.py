@@ -321,15 +321,28 @@ _MIN_DT = datetime.min.replace(tzinfo=dt_timezone.utc)
 BLUEPRINT_SORTS = {
     'name': lambda r: (r['name'] or '').lower(),
     'favourites': lambda r: r['favourites'] or 0,
+    # None (no baseline for the window) sorts below every real delta.
+    'fav_delta': lambda r: r['fav_delta'] if r['fav_delta'] is not None else float('-inf'),
     'comments': lambda r: r['comments'] or 0,
     'awaiting': lambda r: r['awaiting'] or 0,
     'last': lambda r: r['last_comment_ts'] or _MIN_DT,
 }
 
+# Δ window options for the Blueprints "new favourites" switcher: label -> days.
+BLUEPRINT_WINDOWS = {'today': 1, '7d': 7, '30d': 30}
+# Column index of each sort key in the rendered table, so the client-side pager
+# can pick up the server's initial sort instead of hard-coding its own default.
+BLUEPRINT_SORT_COL = {'name': 0, 'favourites': 1, 'fav_delta': 2, 'comments': 3, 'awaiting': 4, 'last': 5}
+
 
 def blueprints_list(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
-    rows = get_blueprints_overview(user_url)
+
+    # "New favourites" window: which past snapshot the Δ column is measured against.
+    window = request.GET.get('window', '30d')
+    if window not in BLUEPRINT_WINDOWS:
+        window = '30d'
+    rows, baseline_ts = get_blueprints_overview(user_url, baseline_days=BLUEPRINT_WINDOWS[window])
 
     # Server sort gives the initial order (and a no-JS fallback). The page renders
     # every blueprint, so the browser re-sorts instantly on header click - no
@@ -340,12 +353,22 @@ def blueprints_list(request, fp_user_id):
     direction = 'asc' if request.GET.get('dir') == 'asc' else 'desc'
     rows.sort(key=BLUEPRINT_SORTS[sort], reverse=(direction == 'desc'))
 
+    # One-line "what you gained" summary for the chosen window.
+    gained = sum(r['fav_delta'] for r in rows if r['fav_delta'] and r['fav_delta'] > 0)
+    movers = sum(1 for r in rows if r['fav_delta'] and r['fav_delta'] > 0)
+
     counts = get_inbox_counts(user_url)
     context = {
         'rows': rows,
         'total': len(rows),
         'sort': sort,
         'dir': direction,
+        'window': window,
+        'baseline_ts': baseline_ts,
+        'gained': gained,
+        'movers': movers,
+        'sort_col': BLUEPRINT_SORT_COL[sort],
+        'sort_asc': direction == 'asc',
     }
     context.update(shell_context(fp_user_id, user_url, active='blueprints', awaiting_count=counts['needs']))
     return render(request, 'monitoring/blueprints.html', context)

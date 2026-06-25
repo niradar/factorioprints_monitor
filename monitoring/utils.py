@@ -247,14 +247,19 @@ def get_blueprints_overview(user_url, baseline_days=30):
 
     Each row: blueprint_id, name, url, favourites, fav_delta (vs ~baseline_days
     ago, or None), comments (Disqus total), awaiting (unhandled captured), and
-    last_comment_ts. Returns [] if the user has no snapshots.
+    last_comment_ts.
+
+    Returns ``(rows, baseline_ts)`` where baseline_ts is the snapshot the deltas
+    were actually measured against (so the UI can show "since <date>"), or None
+    when there is no snapshot old enough for the window. Returns ``([], None)``
+    if the user has no snapshots at all.
     """
     from datetime import timedelta
     from django.db.models import Exists
 
     latest = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts').first()
     if not latest:
-        return []
+        return [], None
     latest_ts = latest.snapshot_ts
 
     current = BlueprintSnapshot.objects.filter(snapshot_ts=latest_ts).select_related('blueprint')
@@ -296,7 +301,7 @@ def get_blueprints_overview(user_url, baseline_days=30):
             'awaiting': a['awaiting'],
             'last_comment_ts': a['last_ts'],
         })
-    return rows
+    return rows, (baseline_user.snapshot_ts if baseline_user else None)
 
 
 def list_snapshots(user_url=None):
