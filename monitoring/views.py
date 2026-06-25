@@ -339,9 +339,9 @@ def blueprints_list(request, fp_user_id):
     user_url = f"https://factorioprints.com/user/{fp_user_id}"
 
     # "New favourites" window: which past snapshot the Δ column is measured against.
-    window = request.GET.get('window', '30d')
+    window = request.GET.get('window', '7d')
     if window not in BLUEPRINT_WINDOWS:
-        window = '30d'
+        window = '7d'
     rows, baseline_ts = get_blueprints_overview(user_url, baseline_days=BLUEPRINT_WINDOWS[window])
 
     # Server sort gives the initial order (and a no-JS fallback). The page renders
