@@ -249,20 +249,26 @@ def get_blueprints_overview(user_url, baseline_days=30):
     ago, or None), comments (Disqus total), awaiting (unhandled captured), and
     last_comment_ts.
 
+    A blueprint that first appears *within* the window (its earliest snapshot is
+    newer than the baseline snapshot) is treated as new: its baseline is 0, so
+    all its current favourites count as gained in the window. This only fires
+    when a baseline snapshot exists - on a brand-new account (no snapshot old
+    enough) every delta is None, since the first scan is the baseline, not a gain.
+
     Returns ``(rows, baseline_ts)`` where baseline_ts is the snapshot the deltas
     were actually measured against (so the UI can show "since <date>"), or None
     when there is no snapshot old enough for the window. Returns ``([], None)``
     if the user has no snapshots at all.
     """
     from datetime import timedelta
-    from django.db.models import Exists
+    from django.db.models import Exists, Min
 
     latest = UserSnapshot.objects.filter(user_url=user_url).order_by('-snapshot_ts').first()
     if not latest:
         return [], None
     latest_ts = latest.snapshot_ts
 
-    current = BlueprintSnapshot.objects.filter(snapshot_ts=latest_ts).select_related('blueprint')
+    current = list(BlueprintSnapshot.objects.filter(snapshot_ts=latest_ts).select_related('blueprint'))
 
     # baseline favourites ~baseline_days ago (nearest user snapshot at/before then)
     baseline_user = (
@@ -271,10 +277,19 @@ def get_blueprints_overview(user_url, baseline_days=30):
         .order_by('-snapshot_ts').first()
     )
     baseline_fav = {}
+    first_seen = {}
     if baseline_user:
         baseline_fav = dict(
             BlueprintSnapshot.objects.filter(snapshot_ts=baseline_user.snapshot_ts)
             .values_list('blueprint_id', 'favourites')
+        )
+        # Earliest snapshot per current blueprint, to spot ones that first
+        # appeared after the baseline (genuinely new, so baseline favs = 0).
+        first_seen = dict(
+            BlueprintSnapshot.objects
+            .filter(blueprint_id__in=[bs.blueprint_id for bs in current])
+            .values('blueprint_id').annotate(f=Min('snapshot_ts'))
+            .values_list('blueprint_id', 'f')
         )
 
     # comment aggregates per blueprint, from the latest-unique comments (one query)
@@ -291,6 +306,10 @@ def get_blueprints_overview(user_url, baseline_days=30):
     for bs in current:
         a = agg.get(bs.blueprint_id, {'awaiting': 0, 'last_ts': None})
         base = baseline_fav.get(bs.blueprint_id)
+        if base is None and baseline_user is not None:
+            fs = first_seen.get(bs.blueprint_id)
+            if fs is not None and fs > baseline_user.snapshot_ts:
+                base = 0  # first appeared within the window; all favs are new
         rows.append({
             'blueprint_id': bs.blueprint_id,
             'name': bs.name,

@@ -553,6 +553,62 @@ class GetBlueprintsOverviewTest(TestCase):
         self.assertIsNone(baseline_ts)
 
 
+class NewBlueprintDeltaTest(TestCase):
+    """A blueprint that first appears within the window (on an account that has
+    older history) should count all its favourites as new - baseline 0, not '-'.
+    Mirrors the real case: an existing user publishes a new blueprint that already
+    has favourites by the first scan."""
+
+    def setUp(self):
+        self.url = "https://factorioprints.com/user/u1"
+        self.now = timezone.now()
+        # BP1 has full history; BP2 first appears 7 days ago (mid-window).
+        self.bp1 = Blueprint.objects.create(url="https://fp.com/bp/1", name="BP1")
+        self.bp2 = Blueprint.objects.create(url="https://fp.com/bp/2", name="BP2")
+
+        def snap(days_ago, favs):
+            ts = self.now - timedelta(days=days_ago)
+            UserSnapshot.objects.create(snapshot_ts=ts, user_url=self.url)
+            for bp, fav in favs.items():
+                BlueprintSnapshot.objects.create(
+                    snapshot_ts=ts, blueprint=bp, name=bp.name, favourites=fav, total_comments=0
+                )
+
+        snap(30, {self.bp1: 10})                       # BP2 does not exist yet
+        snap(7, {self.bp1: 15, self.bp2: 2})           # BP2 first seen here with 2
+        snap(0, {self.bp1: 20, self.bp2: 9})           # latest
+
+    def _delta(self, rows, name):
+        return next(r["fav_delta"] for r in rows if r["name"] == name)
+
+    def test_new_bp_counts_full_favs_when_it_predates_only_the_old_baseline(self):
+        from monitoring.utils import get_blueprints_overview
+        # 30d baseline is 30 days ago, before BP2 existed -> BP2 is new: 0 -> 9.
+        rows, _ = get_blueprints_overview(self.url, baseline_days=30)
+        self.assertEqual(self._delta(rows, "BP1"), 10)  # 20 - 10 (normal)
+        self.assertEqual(self._delta(rows, "BP2"), 9)   # 9 - 0 (new in window)
+
+    def test_new_bp_uses_real_baseline_once_it_existed_at_baseline(self):
+        from monitoring.utils import get_blueprints_overview
+        # 7d baseline is when BP2 already existed (2 favs) -> normal delta 7.
+        rows, _ = get_blueprints_overview(self.url, baseline_days=7)
+        self.assertEqual(self._delta(rows, "BP1"), 5)   # 20 - 15
+        self.assertEqual(self._delta(rows, "BP2"), 7)   # 9 - 2
+
+    def test_new_account_never_fabricates_a_delta(self):
+        from monitoring.utils import get_blueprints_overview
+        # Fresh account: only today's snapshot exists, no baseline for the window.
+        fresh = "https://factorioprints.com/user/fresh"
+        bp = Blueprint.objects.create(url="https://fp.com/bp/9", name="BP9")
+        UserSnapshot.objects.create(snapshot_ts=self.now, user_url=fresh)
+        BlueprintSnapshot.objects.create(
+            snapshot_ts=self.now, blueprint=bp, name="BP9", favourites=12, total_comments=0
+        )
+        rows, baseline_ts = get_blueprints_overview(fresh, baseline_days=7)
+        self.assertIsNone(rows[0]["fav_delta"])  # first scan is baseline, not a gain
+        self.assertIsNone(baseline_ts)
+
+
 class BlueprintsWithNewCommentsTest(TestCase):
     """Test CSV generation and nearest-date fallback logic."""
 
